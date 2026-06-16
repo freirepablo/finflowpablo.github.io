@@ -2019,7 +2019,7 @@ initPin();
 <!-- Firebase: conexão com o banco de dados e função de salvar (adicionado, nada acima foi alterado) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
-  import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+  import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyD2eLTwAAQhHRCPdl5C4wI5YiV82l7abmE",
@@ -2032,6 +2032,32 @@ initPin();
 
   const firebaseApp = initializeApp(firebaseConfig);
   const db = getFirestore(firebaseApp);
+
+  // Carrega os dados salvos na nuvem (financeflow/state) e atualiza o app na tela.
+  // Chamada automaticamente assim que o app abre.
+  async function loadFromFirebase() {
+    try {
+      const snap = await getDoc(doc(db, "financeflow", "state"));
+      if (snap.exists()) {
+        const cloudState = snap.data();
+        Object.assign(state, cloudState); // mescla os dados da nuvem no objeto state já existente
+        if (!state.categoryLimits) state.categoryLimits = {};
+        if (!state.accountBalances) state.accountBalances = {};
+        if (!state.invoicePaid) state.invoicePaid = {};
+        if (!state.recurringPaid) state.recurringPaid = {};
+        saveState(); // mantém o localStorage em sincronia com o que veio da nuvem
+        populateAllCategorySelects();
+        updateMonthLabel();
+        refreshPage(currentPage);
+        toast('Dados carregados da nuvem!');
+      }
+    } catch (e) {
+      console.warn('Firebase load failed', e);
+    }
+  }
+
+  // Roda automaticamente ao abrir o app
+  loadFromFirebase();
 
   // Salva o objeto `state` (todas as transações, recorrências, saldos, configurações etc.)
   // no documento financeflow/state do Firestore.
