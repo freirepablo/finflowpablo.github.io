@@ -203,6 +203,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
     <a class="nav-item" onclick="navigate('settings')" data-page="settings"><span class="icon"><i class="fa-solid fa-gear"></i></span> Configurações</a>
   </div>
   <div class="p-3 border-t" style="border-color:var(--border)">
+    <button class="btn btn-primary w-full mb-2 text-xs" onclick="saveToFirebase()" id="btn-save-firebase"><i class="fa-solid fa-cloud-arrow-up"></i> Salvar na nuvem</button>
     <button class="btn btn-ghost w-full mb-2 text-xs" onclick="exportData()"><i class="fa-solid fa-download"></i> Exportar Backup</button>
     <label class="btn btn-ghost w-full text-xs cursor-pointer">
       <i class="fa-solid fa-upload"></i> Importar Backup
@@ -2012,6 +2013,41 @@ document.addEventListener('keydown', e => {
 
 init();
 initPin();
+</script>
+
+<!-- Firebase: conexão com o banco de dados e função de salvar (adicionado, nada acima foi alterado) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-app.js";
+  import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyD2eLTwAAQhHRCPdl5C4wI5YiV82l7abmE",
+    authDomain: "finflow-data.firebaseapp.com",
+    projectId: "finflow-data",
+    storageBucket: "finflow-data.firebasestorage.app",
+    messagingSenderId: "810059872758",
+    appId: "1:810059872758:web:04cb4dd1381a46e44a6fd7"
+  };
+
+  const firebaseApp = initializeApp(firebaseConfig);
+  const db = getFirestore(firebaseApp);
+
+  // Salva o objeto `state` (todas as transações, recorrências, saldos, configurações etc.)
+  // no documento financeflow/state do Firestore.
+  window.saveToFirebase = async function () {
+    const btn = document.getElementById('btn-save-firebase');
+    const originalHtml = btn ? btn.innerHTML : null;
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...'; }
+    try {
+      await setDoc(doc(db, "financeflow", "state"), JSON.parse(JSON.stringify(state)));
+      toast('Dados salvos na nuvem com sucesso!');
+    } catch (e) {
+      console.error('Firebase save failed', e);
+      toast('Erro ao salvar na nuvem. Veja o console.', 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+    }
+  };
 </script>
 </body>
 </html>
