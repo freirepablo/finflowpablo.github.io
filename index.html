@@ -49,6 +49,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
   #sidebar.open{transform:translateX(0);}
   #main-content{margin-left:0;padding:16px;padding-bottom:80px;}
   #bottom-nav{display:flex;}
+  #sidebar.open ~ #bottom-nav{display:none;}
   #sidebar-overlay{display:block;}
 }
 .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;}
