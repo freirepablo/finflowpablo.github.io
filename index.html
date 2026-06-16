@@ -1739,6 +1739,35 @@ function populateAccountSelects() {
 ============================================================ */
 let importRows=[];
 
+// Faz o split de uma linha CSV respeitando campos entre aspas, para que um delimitador
+// (vírgula ou ponto-e-vírgula) presente DENTRO de um valor entre aspas — como a vírgula
+// decimal em "18,53" — não seja confundido com um separador de coluna.
+function splitCSVRow(line, delimiter){
+  const result=[];
+  let cur='';
+  let inQuotes=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(inQuotes){
+      if(ch==='"'){
+        if(line[i+1]==='"'){cur+='"';i++;}
+        else{inQuotes=false;}
+      } else {
+        cur+=ch;
+      }
+    } else if(ch==='"'){
+      inQuotes=true;
+    } else if(ch===delimiter){
+      result.push(cur.trim());
+      cur='';
+    } else {
+      cur+=ch;
+    }
+  }
+  result.push(cur.trim());
+  return result;
+}
+
 function handleCSV(input){
   const file=input.files[0];if(!file)return;
   const reader=new FileReader();
@@ -1752,14 +1781,18 @@ function parseCSV(text) {
   const header=lines[0].toLowerCase();
   const hasHeader=header.includes('date')||header.includes('title')||header.includes('amount');
   const dataLines=hasHeader?lines.slice(1):lines;
+  // CSVs em formato BR (vírgula decimal) podem usar ';' como delimitador, ou usar ',' com o valor
+  // entre aspas (ex: "18,53") para não conflitar com a vírgula decimal. Um split simples não entende
+  // aspas e quebra o valor entre aspas em duas colunas, descartando a parte decimal. O splitCSVRow
+  // abaixo respeita aspas, então a vírgula decimal dentro de "18,53" não é tratada como separador.
+  const delimiter=lines[0].includes(';')?';':',';
   importRows=[];
   for(const line of dataLines){
-    const cols=line.split(/[,;]/).map(c=>c.trim().replace(/^"|"$/g,''));
+    const cols=splitCSVRow(line,delimiter);
     if(cols.length<3)continue;
     const[dateRaw,title,amountRaw]=cols;
-    // Fix 1: preserve exact Brazilian decimal value (x.xxx,yy → remove dots, replace comma with dot)
-    const cleanAmount=amountRaw.trim().replace(/\./g,'').replace(',','.');
-    const amount=parseFloat(cleanAmount);
+    // preserva o valor decimal brasileiro exato (x.xxx,yy → remove pontos de milhar, troca vírgula por ponto)
+    const amount=parseBRL(amountRaw);
     if(isNaN(amount))continue;
     let description=title.trim();
     let installPart=null,installTotal=null,installBase=description;
