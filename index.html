@@ -602,7 +602,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
       <div class="col-span-2"><label class="label">Descrição</label><input type="text" class="input" id="rec-description" placeholder="Ex: Aluguel, Netflix, Salário..."/></div>
       <div><label class="label">Valor (R$)</label><input type="text" class="input" id="rec-amount" placeholder="Ex: 450,00" oninput="formatAmountInput(this)" inputmode="decimal"/></div>
       <div><label class="label">Dia do mês</label><input type="number" class="input" id="rec-day" min="1" max="28" placeholder="Ex: 10"/></div>
-      <div class="col-span-2"><label class="label">Categoria</label><select class="select" id="rec-category"></select></div>
+      <div class="col-span-2" id="rec-category-wrap"><label class="label">Categoria</label><select class="select" id="rec-category"></select></div>
+      <div class="col-span-2 hidden" id="rec-account-wrap"><label class="label">Receber em</label><select class="select" id="rec-account"></select></div>
     </div>
     <div class="flex gap-2 justify-end">
       <button class="btn btn-ghost" onclick="closeModal('add-recurring')">Cancelar</button>
@@ -679,16 +680,16 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 <div id="modal-pay-recurring" class="modal-overlay">
   <div class="modal-box">
     <div class="flex items-center justify-between mb-5">
-      <h2 class="font-bold text-white text-lg"><i class="fa-solid fa-rotate mr-2" style="color:var(--green)"></i>Pagar Recorrência</h2>
+      <h2 class="font-bold text-white text-lg" id="pay-rec-modal-title"><i class="fa-solid fa-rotate mr-2" style="color:var(--green)"></i>Pagar Recorrência</h2>
       <button class="btn btn-ghost btn-icon" onclick="closeModal('pay-recurring')"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <input type="hidden" id="pay-rec-id"/>
-    <p class="text-sm mb-3" style="color:var(--text-muted)">O valor será descontado da conta apenas após confirmar.</p>
-    <div class="mb-4"><label class="label">Despesa</label><div id="pay-rec-desc" class="text-white font-semibold"></div><div id="pay-rec-amount" class="text-xl font-bold mt-1" style="color:var(--red)"></div></div>
-    <div class="mb-4"><label class="label">Debitar da conta</label><select class="select" id="pay-rec-account"></select></div>
+    <p class="text-sm mb-3" id="pay-rec-confirm-text" style="color:var(--text-muted)">O valor será descontado da conta apenas após confirmar.</p>
+    <div class="mb-4"><label class="label" id="pay-rec-label">Despesa</label><div id="pay-rec-desc" class="text-white font-semibold"></div><div id="pay-rec-amount" class="text-xl font-bold mt-1" style="color:var(--red)"></div></div>
+    <div class="mb-4"><label class="label" id="pay-rec-account-label">Debitar da conta</label><select class="select" id="pay-rec-account"></select></div>
     <div class="flex gap-2 justify-end">
       <button class="btn btn-ghost" onclick="closeModal('pay-recurring')">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmPayRecurring()"><i class="fa-solid fa-check"></i> Confirmar Pagamento</button>
+      <button class="btn btn-primary" onclick="confirmPayRecurring()"><i class="fa-solid fa-check"></i> <span id="pay-rec-confirm-btn-text">Confirmar Pagamento</span></button>
     </div>
   </div>
 </div>
@@ -1346,20 +1347,23 @@ function renderRecurringPage() {
       const pKey=`${r.id}_${ym}`;
       const isPaid=!!(state.recurringPaid?.[pKey]);
       const paidInfo=state.recurringPaid?.[pKey];
-      const showPayBtn=type==='account'&&!isInc;
+      const showPayBtn=type==='account'||isInc;
       let payBtnHtml='';
       if(showPayBtn){
+        const amtColor=isInc?'var(--green)':'var(--red)';
+        const amtSign=isInc?'+':'-';
         if(isPaid){
-          const accLabel=ACCOUNT_TYPES.find(a=>a.id===paidInfo.accountId)?.label||'Conta';
-          payBtnHtml=`<div class="flex flex-col items-end gap-1"><div class="text-sm font-bold" style="color:var(--green)">Paga</div><button class="btn btn-ghost btn-sm text-xs" onclick="event.stopPropagation();unpayRecurring('${r.id}')"><i class="fa-solid fa-rotate-left"></i></button></div>`;
+          const statusLabel=isInc?'Recebida':'Paga';
+          payBtnHtml=`<div class="flex flex-col items-end gap-1"><div class="text-sm font-bold" style="color:var(--green)">${statusLabel}</div><button class="btn btn-ghost btn-sm text-xs" onclick="event.stopPropagation();unpayRecurring('${r.id}')"><i class="fa-solid fa-rotate-left"></i></button></div>`;
         } else {
-          payBtnHtml=`<div class="flex flex-col items-end gap-1"><div class="text-sm font-bold" style="color:var(--red)">- ${fmt(amount)}</div><button class="btn btn-primary btn-sm text-xs" onclick="event.stopPropagation();openPayRecurring('${r.id}')"><i class="fa-solid fa-check"></i> Pagar</button></div>`;
+          const actionLabel=isInc?'Receber':'Pagar';
+          payBtnHtml=`<div class="flex flex-col items-end gap-1"><div class="text-sm font-bold" style="color:${amtColor}">${amtSign} ${fmt(amount)}</div><button class="btn btn-primary btn-sm text-xs" onclick="event.stopPropagation();openPayRecurring('${r.id}')"><i class="fa-solid fa-check"></i> ${actionLabel}</button></div>`;
         }
       }
       return `<div class="tx-item" onclick="openEditRecurring('${r.id}')">
         <div class="tx-icon" style="background:${c.color}22"><i class="fa-solid ${c.icon}" style="color:${c.color}"></i></div>
         <div class="flex-1">
-          <div class="flex items-center gap-2"><span class="text-sm font-semibold text-white">${escHtml(desc)}</span>${isOver?'<span class="badge" style="background:rgba(234,179,8,.15);color:var(--yellow)">Modificado</span>':''}${isPaid?'<span class="badge" style="background:rgba(34,197,94,.2);color:var(--green)"><i class="fa-solid fa-check-circle text-xs"></i> Paga</span>':''}</div>
+          <div class="flex items-center gap-2"><span class="text-sm font-semibold text-white">${escHtml(desc)}</span>${isOver?'<span class="badge" style="background:rgba(234,179,8,.15);color:var(--yellow)">Modificado</span>':''}${isPaid?`<span class="badge" style="background:rgba(34,197,94,.2);color:var(--green)"><i class="fa-solid fa-check-circle text-xs"></i> ${isInc?'Recebida':'Paga'}</span>`:''}</div>
           <div class="text-xs mt-0.5" style="color:var(--text-muted)">Dia ${r.day} · ${c.label}</div>
         </div>
         ${showPayBtn?payBtnHtml:`<div class="text-sm font-bold" style="color:${isInc?'var(--green)':'var(--red)'}">${isInc?'+':'-'} ${fmt(amount)}</div>`}
@@ -1368,7 +1372,7 @@ function renderRecurringPage() {
   });
 }
 
-// Fix 5: pay recurring expense
+// Fix 5: pay/receive recurring item
 function openPayRecurring(recId) {
   const ym=state.currentMonth;
   const rec=state.recurring.find(r=>r.id===recId);if(!rec)return;
@@ -1376,10 +1380,18 @@ function openPayRecurring(recId) {
   const over=state.recurringOverrides[oKey];
   const amount=over?.amount!==undefined?over.amount:rec.amount;
   const desc=over?.description||rec.description;
+  const isInc=rec.type==='income';
   document.getElementById('pay-rec-id').value=recId;
   document.getElementById('pay-rec-desc').textContent=desc;
   document.getElementById('pay-rec-amount').textContent=fmt(amount);
+  document.getElementById('pay-rec-amount').style.color=isInc?'var(--green)':'var(--red)';
+  document.getElementById('pay-rec-modal-title').innerHTML=isInc?'<i class="fa-solid fa-rotate mr-2" style="color:var(--green)"></i>Receber Recorrência':'<i class="fa-solid fa-rotate mr-2" style="color:var(--green)"></i>Pagar Recorrência';
+  document.getElementById('pay-rec-label').textContent=isInc?'Receita':'Despesa';
+  document.getElementById('pay-rec-account-label').textContent=isInc?'Receber na conta':'Debitar da conta';
+  document.getElementById('pay-rec-confirm-text').textContent=isInc?'O valor será creditado na conta apenas após confirmar.':'O valor será descontado da conta apenas após confirmar.';
+  document.getElementById('pay-rec-confirm-btn-text').textContent=isInc?'Confirmar Recebimento':'Confirmar Pagamento';
   populateAccountSelects();
+  if(isInc&&rec.accountId)document.getElementById('pay-rec-account').value=rec.accountId;
   openModal('pay-recurring');
 }
 
@@ -1391,11 +1403,12 @@ function confirmPayRecurring() {
   const oKey=`${recId}_${ym}`;
   const over=state.recurringOverrides[oKey];
   const amount=over?.amount!==undefined?over.amount:rec.amount;
+  const isInc=rec.type==='income';
   if(!state.recurringPaid)state.recurringPaid={};
   state.recurringPaid[oKey]={paid:true,accountId,amount,date:todayStr()};
-  adjustAccountBalance(accountId,-amount);
+  adjustAccountBalance(accountId, isInc?amount:-amount);
   saveState();closeModal('pay-recurring');renderRecurringPage();
-  toast(`${rec.description} pago! ${fmt(amount)} debitado.`);
+  toast(isInc?`${rec.description} recebida! ${fmt(amount)} creditado.`:`${rec.description} pago! ${fmt(amount)} debitado.`);
 }
 
 function unpayRecurring(recId) {
@@ -1403,7 +1416,9 @@ function unpayRecurring(recId) {
   const oKey=`${recId}_${ym}`;
   const paid=state.recurringPaid?.[oKey];
   if(!paid||!confirm('Desfazer pagamento?'))return;
-  adjustAccountBalance(paid.accountId, paid.amount);
+  const rec=state.recurring.find(r=>r.id===recId);
+  const isInc=rec&&rec.type==='income';
+  adjustAccountBalance(paid.accountId, isInc?-paid.amount:paid.amount);
   delete state.recurringPaid[oKey];
   saveState();renderRecurringPage();toast('Pagamento desfeito.','info');
 }
@@ -1673,17 +1688,22 @@ function deleteTransaction(id){
 function setRecType(type){
   currentRecType=type;
   document.querySelectorAll('#rec-type-tabs .tab').forEach(t=>t.classList.toggle('active',t.dataset.type===type));
+  const isInc=type==='income';
+  document.getElementById('rec-category-wrap')?.classList.toggle('hidden',isInc);
+  document.getElementById('rec-account-wrap')?.classList.toggle('hidden',!isInc);
 }
 
 function addRecurring(){
   const description=document.getElementById('rec-description').value.trim();
   const amount=parseBRL(document.getElementById('rec-amount').value);
   const day=parseInt(document.getElementById('rec-day').value)||1;
-  const category=document.getElementById('rec-category').value;
   const type=currentRecType;
+  const isInc=type==='income';
+  const category=isInc?'receita':document.getElementById('rec-category').value;
+  const accountId=isInc?(document.getElementById('rec-account')?.value||'contacorrente'):undefined;
   if(!description){toast('Informe a descrição','error');return;}
   if(!amount||amount<=0){toast('Informe um valor válido','error');return;}
-  state.recurring.push({id:uid(),type,description,amount,day,category,startMonth:state.currentMonth});
+  state.recurring.push({id:uid(),type,description,amount,day,category,accountId,startMonth:state.currentMonth});
   saveState();closeModal('add-recurring');renderRecurringPage();toast('Recorrência criada!');
 }
 
@@ -1739,7 +1759,7 @@ function populateAllCategorySelects() {
 
 function populateAccountSelects() {
   const opts = ACCOUNT_TYPES.map(a=>`<option value="${a.id}">${a.label}</option>`).join('');
-  ['income-account','tx-account','edit-tx-account','pay-invoice-account','pay-rec-account'].forEach(id=>{
+  ['income-account','tx-account','edit-tx-account','pay-invoice-account','pay-rec-account','rec-account'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.innerHTML=opts;
   });
 }
