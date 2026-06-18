@@ -1072,12 +1072,13 @@ function getMonthProjectionDetailed(ym, catFilter='') {
       return s + (over?.amount!==undefined ? over.amount : r.amount);
     }, 0);
 
-  // 3. Fatura do cartão do ciclo atual (inclui recorrências de cartão via getInvoiceTotal)
-  const openYm = getOpenInvoiceMonth();
-  const closedYm = prevInvoiceMonth(openYm);
-  const closedPaid = state.invoicePaid?.[closedYm];
-  // usa a fatura em aberto (ou a fechada ainda não paga, seguindo a mesma lógica da página de cartão)
-  const invoiceYm = (getInvoiceTotal(closedYm)>0 && !closedPaid) ? closedYm : openYm;
+  // 3. Fatura do cartão do ciclo relativo ao mês navegado
+  // Para um mês passado/futuro: usa a fatura cujo ciclo cobre o meio do mês navegado (dia 14)
+  const navInvoiceYm = getInvoiceMonthForDate(`${ym}-14`, state.settings.closingDay||22);
+  const prevNavYm = prevInvoiceMonth(navInvoiceYm);
+  const prevNavPaid = state.invoicePaid?.[prevNavYm];
+  // Se a fatura anterior ao ciclo navegado existe e ainda não foi paga, usa ela; senão usa a do ciclo
+  const invoiceYm = (getInvoiceTotal(prevNavYm)>0 && !prevNavPaid) ? prevNavYm : navInvoiceYm;
   const cardInvoice = getInvoiceTotal(invoiceYm);
 
   return {
