@@ -48,6 +48,9 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
   #sidebar{transform:translateX(-100%);}
   #sidebar.open{transform:translateX(0);}
   #main-content{margin-left:0;padding:16px;padding-bottom:80px;}
+  /* Header sticky no mobile */
+  #main-header{position:sticky;top:0;z-index:30;background:var(--bg);padding-top:16px;margin:-16px -16px 0;padding-left:16px;padding-right:16px;}
+  .page-filters{position:sticky;top:0;z-index:29;background:var(--bg);padding-top:8px;padding-bottom:4px;margin-bottom:8px;}
   #bottom-nav{display:flex;opacity:1;visibility:visible;pointer-events:auto;transition:opacity .01s .3s,visibility .01s .3s;}
   #sidebar.open ~ #bottom-nav{opacity:0;visibility:hidden;pointer-events:none;transition:opacity 0s,visibility 0s;}
   #sidebar-overlay{display:block;}
@@ -226,7 +229,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 <main id="main-content">
 
   <!-- HEADER -->
-  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+  <div id="main-header" class="mb-6">
+  <div class="flex items-center justify-between flex-wrap gap-3" style="padding-bottom:12px">
     <div class="flex items-center gap-3">
       <button class="md:hidden btn btn-ghost btn-icon" onclick="document.getElementById('sidebar').classList.add('open');document.getElementById('sidebar-overlay').style.display='block'"><i class="fa-solid fa-bars"></i></button>
       <div>
@@ -244,6 +248,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
       <button class="btn btn-expense" onclick="openModal('add-tx')"><i class="fa-solid fa-plus"></i><span class="hidden sm:inline">Despesa</span></button>
     </div>
   </div>
+  </div>
 
   <!-- PAGES -->
 
@@ -251,7 +256,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
   <div id="page-dashboard" class="page active">
 
     <!-- Global category filter -->
-    <div class="flex items-center gap-3 mb-4 flex-wrap">
+    <div class="page-filters flex items-center gap-3 flex-wrap">
       <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Filtrar por:</span>
       <select class="select text-xs w-auto" id="dash-filter-cat" onchange="renderDashboard()" style="padding:6px 12px">
         <option value="">Todas as categorias</option>
@@ -360,7 +365,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
   <!-- TRANSACTIONS -->
   <div id="page-transactions" class="page">
     <div class="card">
-      <div class="flex items-center justify-between mb-4 flex-wrap gap-3">
+      <div class="page-filters flex items-center justify-between flex-wrap gap-3">
         <div class="tab-bar" id="tx-tabs">
           <div class="tab active" onclick="setTxTab('all')">Todas</div>
           <div class="tab" onclick="setTxTab('income')"><i class="fa-solid fa-arrow-trend-up mr-1" style="color:var(--green)"></i>Receitas</div>
@@ -388,6 +393,19 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
       <div id="card-next-invoice-preview" class="hidden mt-3 pt-3" style="border-top:1px solid var(--border)"></div>
     </div>
     <div class="card"><h3 class="font-bold text-sm text-white mb-4">Lançamentos no Cartão</h3><div id="card-tx-list"></div></div>
+    <div class="card mt-4" id="card-month-nav-invoice" style="display:none">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="text-xs mb-1" style="color:var(--text-muted)">Fatura de <span id="card-nav-month-label"></span></div>
+          <div id="card-nav-invoice-total" class="text-xl font-bold text-white">R$ 0,00</div>
+        </div>
+        <span class="badge" style="background:rgba(168,85,247,.15);color:var(--purple)"><i class="fa-solid fa-calendar-alt mr-1"></i>Mês navegado</span>
+      </div>
+    </div>
+    <div class="card mt-4">
+      <h3 class="font-bold text-sm text-white mb-4"><i class="fa-solid fa-layer-group mr-2" style="color:var(--purple)"></i>Compras Parceladas em Andamento</h3>
+      <div id="card-installments-list"></div>
+    </div>
   </div>
 
   <!-- RECURRING -->
@@ -902,6 +920,10 @@ function getMonthTransactions(ym) {
     if(rec.startMonth&&rec.startMonth>ym)continue;
     if(rec.endMonth&&rec.endMonth<ym)continue;
     const oKey=`${rec.id}_${ym}`;
+    const isPaid=!!(state.recurringPaid?.[oKey]?.paid);
+    // Conta e receita: só incluir nas transações se já foram pagas/recebidas
+    // Cartão: inclui sempre (para aparecer na fatura do mês)
+    if((rec.type==='account'||rec.type==='income')&&!isPaid)continue;
     const over=state.recurringOverrides[oKey];
     const amount=over?.amount!==undefined?over.amount:rec.amount;
     const description=over?.description||rec.description;
@@ -1362,6 +1384,76 @@ function renderCardPage() {
   txs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const el=document.getElementById('card-tx-list');
   el.innerHTML=txs.length===0?'<div class="empty-state"><i class="fa-solid fa-credit-card"></i><br>Nenhum lançamento</div>':renderTxGroupedByInvoice(txs);
+
+  // Card de fatura do mês navegado (visível quando o mês navegado é diferente da fatura principal)
+  const navInvoiceYm=getInvoiceMonthForDate(ym+'-14',closingDay); // usa dia 14 como referência central do mês
+  const navCard=document.getElementById('card-month-nav-invoice');
+  if(navCard){
+    if(navInvoiceYm!==mainYm){
+      const navTotal=getInvoiceTotal(navInvoiceYm);
+      document.getElementById('card-nav-month-label').textContent=monthLabel(navInvoiceYm);
+      document.getElementById('card-nav-invoice-total').textContent=fmt(navTotal);
+      navCard.style.display='';
+    } else {
+      navCard.style.display='none';
+    }
+  }
+
+  renderInstallmentsCard();
+}
+
+function renderInstallmentsCard() {
+  const el=document.getElementById('card-installments-list');
+  if(!el)return;
+  // Agrupar parcelas pelo _installmentOf para ter uma linha por compra
+  const groups={};
+  for(const tx of state.transactions){
+    if(tx.type!=='credit'||!tx._installmentOf)continue;
+    if(!groups[tx._installmentOf])groups[tx._installmentOf]={txs:[],description:'',total:0};
+    groups[tx._installmentOf].txs.push(tx);
+    groups[tx._installmentOf].total+=tx.amount;
+    // Descrição base: tirar o " X/Y" do final
+    groups[tx._installmentOf].description=tx.description.replace(/\s+\d+\/\d+$/,'');
+  }
+  const today=todayStr();
+  const entries=Object.values(groups).filter(g=>g.txs.length>0);
+  if(entries.length===0){el.innerHTML='<div class="empty-state"><i class="fa-solid fa-layer-group"></i><br>Nenhuma compra parcelada</div>';return;}
+  entries.sort((a,b)=>{
+    const lastA=a.txs.reduce((m,t)=>t.date>m?t.date:m,'');
+    const lastB=b.txs.reduce((m,t)=>t.date>m?t.date:m,'');
+    return lastA.localeCompare(lastB);
+  });
+  el.innerHTML=entries.map(g=>{
+    const sorted=g.txs.slice().sort((a,b)=>a.date.localeCompare(b.date));
+    const first=sorted[0];
+    const last=sorted[sorted.length-1];
+    const total=g.txs.length;
+    const paid=sorted.filter(t=>t.date<=today).length;
+    const remaining=total-paid;
+    const pct=Math.round((paid/total)*100);
+    const endLabel=formatDateBR(last.date);
+    const isFinished=last.date<today;
+    const statusColor=isFinished?'var(--green)':remaining===1?'var(--yellow)':'var(--purple)';
+    const statusText=isFinished?'Quitada':`${remaining}x restante${remaining>1?'s':''}`;
+    return `<div class="tx-item" style="flex-direction:column;align-items:stretch;gap:6px;padding:12px">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="tx-icon" style="background:rgba(168,85,247,.15)"><i class="fa-solid fa-credit-card" style="color:var(--purple)"></i></div>
+          <div>
+            <div class="text-sm font-semibold text-white">${escHtml(g.description)}</div>
+            <div class="text-xs" style="color:var(--text-muted)">${paid}/${total} parcelas · termina em ${endLabel}</div>
+          </div>
+        </div>
+        <div class="text-right">
+          <div class="text-sm font-bold" style="color:var(--purple)">${fmt(first.amount)}<span class="text-xs font-normal" style="color:var(--text-muted)">/parc</span></div>
+          <span class="badge" style="background:${statusColor}22;color:${statusColor}">${statusText}</span>
+        </div>
+      </div>
+      <div style="height:4px;background:var(--border);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${isFinished?'var(--green)':'var(--purple)'};border-radius:4px;transition:width .3s"></div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // Fix 4: open pay invoice modal
@@ -1981,6 +2073,11 @@ function init(){
   populateAllCategorySelects();
   updateMonthLabel();
   renderDashboard();
+  // Ajustar o top dos filtros sticky baseado na altura real do header
+  requestAnimationFrame(()=>{
+    const h=document.getElementById('main-header')?.offsetHeight||0;
+    document.querySelectorAll('.page-filters').forEach(el=>el.style.top=h+'px');
+  });
 }
 
 
