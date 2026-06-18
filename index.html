@@ -286,7 +286,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
         <div id="card-income" class="text-2xl font-bold" style="color:var(--green)">R$ 0,00</div>
         <div class="text-xs mt-1" style="color:var(--text-muted)">Total recebido no mês</div>
       </div>
-      <div class="summary-card red">
+      <div class="summary-card red" style="background:linear-gradient(135deg,var(--card) 0%,#2d1f1f 100%)">
         <div class="flex items-center justify-between mb-3">
           <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Fatura do Cartão</span>
           <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(244,63,94,.15)"><i class="fa-solid fa-credit-card text-sm" style="color:var(--red)"></i></div>
@@ -294,21 +294,29 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
         <div id="card-invoice" class="text-2xl font-bold text-white">R$ 0,00</div>
         <div class="text-xs mt-1" style="color:var(--text-muted)">Fatura atual do cartão</div>
       </div>
-      <div class="summary-card blue">
+      <div class="summary-card blue" style="background:linear-gradient(135deg,var(--card) 0%,#2d1f1f 100%);cursor:pointer" onclick="toggleExpensesBreakdown()">
         <div class="flex items-center justify-between mb-3">
           <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Gastos do Mês</span>
-          <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(59,130,246,.15)"><i class="fa-solid fa-chart-line text-sm" style="color:var(--blue)"></i></div>
+          <div class="flex items-center gap-2">
+            <i id="expenses-expand-icon" class="fa-solid fa-chevron-down text-xs" style="color:var(--text-muted);transition:transform .3s"></i>
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(59,130,246,.15)"><i class="fa-solid fa-chart-line text-sm" style="color:var(--blue)"></i></div>
+          </div>
         </div>
         <div id="card-expenses" class="text-2xl font-bold text-white">R$ 0,00</div>
-        <div class="text-xs mt-1" style="color:var(--text-muted)">Total de despesas</div>
+        <div class="text-xs mt-1" style="color:var(--text-muted)">Despesas + fixas pagas · clique para detalhar</div>
+        <div id="expenses-breakdown-detail" class="hidden mt-3 pt-3 border-t" style="border-color:var(--border)"></div>
       </div>
-      <div class="summary-card purple">
+      <div class="summary-card purple" style="background:linear-gradient(135deg,var(--card) 0%,#2d1f1f 100%);cursor:pointer" onclick="toggleProjectionBreakdown()">
         <div class="flex items-center justify-between mb-3">
           <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Projeção do Mês</span>
-          <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(168,85,247,.15)"><i class="fa-solid fa-telescope text-sm" style="color:var(--purple)"></i></div>
+          <div class="flex items-center gap-2">
+            <i id="projection-expand-icon" class="fa-solid fa-chevron-down text-xs" style="color:var(--text-muted);transition:transform .3s"></i>
+            <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(168,85,247,.15)"><i class="fa-solid fa-telescope text-sm" style="color:var(--purple)"></i></div>
+          </div>
         </div>
         <div id="card-projection" class="text-2xl font-bold text-white">R$ 0,00</div>
-        <div class="text-xs mt-1" style="color:var(--text-muted)">Projeção total (c/ recorrências)</div>
+        <div class="text-xs mt-1" style="color:var(--text-muted)">Total projetado · clique para detalhar</div>
+        <div id="projection-breakdown-detail" class="hidden mt-3 pt-3 border-t" style="border-color:var(--border)"></div>
       </div>
     </div>
 
@@ -976,11 +984,26 @@ function getOpenInvoiceMonth() {
   return getInvoiceMonthForDate(todayStr(), state.settings.closingDay||22);
 }
 // Total de uma fatura específica, somando as transações de cartão pelo ciclo de fechamento (não pelo mês-calendário)
+// Inclui também recorrências de cartão que caem nesse ciclo
 function getInvoiceTotal(ym) {
   const closingDay=state.settings.closingDay||22;
-  return state.transactions
+  const prevYm=prevInvoiceMonth(ym);
+  // Transações avulsas/parceladas de cartão
+  const txTotal=state.transactions
     .filter(t=>(t.type==='credit'||t.type==='card') && getInvoiceMonthForDate(t.date,closingDay)===ym)
     .reduce((s,t)=>s+t.amount,0);
+  // Recorrências de cartão: dia < closingDay → cobrança cai no próprio mês da fatura (ym);
+  // dia >= closingDay → cobrança cai no mês anterior (prevYm), mas já "virou" para esta fatura.
+  const recTotal=state.recurring
+    .filter(r=>r.type==='card')
+    .reduce((s,r)=>{
+      const day=Math.min(r.day||1,28);
+      const calMonth=day<closingDay?ym:prevYm;
+      if(r.startMonth&&r.startMonth>calMonth)return s;
+      if(r.endMonth&&r.endMonth<calMonth)return s;
+      return s+r.amount;
+    },0);
+  return txTotal+recTotal;
 }
 
 function getAllMonthsUpTo(ym) {
@@ -1029,7 +1052,68 @@ function adjustAccountBalance(accountId, delta) {
 }
 
 function getMonthProjection(ym, catFilter='') {
-  return getMonthAccountExpenses(ym,catFilter)+getMonthCardInvoice(ym,catFilter);
+  return getMonthProjectionDetailed(ym, catFilter).total;
+}
+
+// Retorna os três componentes da projeção separados para o breakdown
+function getMonthProjectionDetailed(ym, catFilter='') {
+  // 1. Despesas avulsas já lançadas (apenas transações normais, não recorrências)
+  const regularExpenses = state.transactions
+    .filter(t => t.date && t.date.slice(0,7)===ym && (t.type==='debit'||t.type==='account') && (!catFilter||t.category===catFilter))
+    .reduce((s,t)=>s+t.amount, 0);
+
+  // 2. Recorrências de conta: todas (pagas ou não) — é uma projeção do que vai ser gasto
+  const fixedExpenses = state.recurring
+    .filter(r => (r.type==='account') && (!catFilter||r.category===catFilter))
+    .filter(r => !(r.startMonth&&r.startMonth>ym) && !(r.endMonth&&r.endMonth<ym))
+    .reduce((s,r) => {
+      const oKey=`${r.id}_${ym}`;
+      const over=state.recurringOverrides?.[oKey];
+      return s + (over?.amount!==undefined ? over.amount : r.amount);
+    }, 0);
+
+  // 3. Fatura do cartão do ciclo atual (inclui recorrências de cartão via getInvoiceTotal)
+  const openYm = getOpenInvoiceMonth();
+  const closedYm = prevInvoiceMonth(openYm);
+  const closedPaid = state.invoicePaid?.[closedYm];
+  // usa a fatura em aberto (ou a fechada ainda não paga, seguindo a mesma lógica da página de cartão)
+  const invoiceYm = (getInvoiceTotal(closedYm)>0 && !closedPaid) ? closedYm : openYm;
+  const cardInvoice = getInvoiceTotal(invoiceYm);
+
+  return {
+    regularExpenses,
+    fixedExpenses,
+    cardInvoice,
+    invoiceYm,
+    total: regularExpenses + fixedExpenses + cardInvoice
+  };
+}
+
+function renderProjectionBreakdown(ym, catFilter='') {
+  const el = document.getElementById('projection-breakdown-detail');
+  if(!el) return;
+  const {regularExpenses, fixedExpenses, cardInvoice, invoiceYm} = getMonthProjectionDetailed(ym, catFilter);
+  const row = (label, value, sub='') => `
+    <div class="flex items-center justify-between py-1">
+      <div><span class="text-xs text-white">${label}</span>${sub?`<div class="text-xs" style="color:var(--text-muted)">${sub}</div>`:''}</div>
+      <span class="text-xs font-semibold" style="color:var(--red)">- ${fmt(value)}</span>
+    </div>`;
+  el.innerHTML =
+    row('Despesas avulsas', regularExpenses, 'lançadas no mês') +
+    row('Despesas fixas', fixedExpenses, 'recorrências de conta') +
+    row(`Fatura do cartão`, cardInvoice, `Fatura de ${monthLabel(invoiceYm)}`) +
+    `<div class="flex justify-between pt-1 mt-1" style="border-top:1px solid var(--border)">
+      <span class="text-xs font-bold" style="color:var(--text-muted)">Total projetado</span>
+      <span class="text-xs font-bold" style="color:var(--purple)">- ${fmt(regularExpenses+fixedExpenses+cardInvoice)}</span>
+    </div>`;
+}
+
+function toggleProjectionBreakdown() {
+  const detail = document.getElementById('projection-breakdown-detail');
+  const icon = document.getElementById('projection-expand-icon');
+  if(!detail) return;
+  const hidden = detail.classList.toggle('hidden');
+  if(icon) icon.style.transform = hidden ? '' : 'rotate(180deg)';
 }
 
 /* ============================================================
@@ -1043,6 +1127,9 @@ function renderDashboard() {
   const cardInv=getMonthCardInvoice(ym,catFilter);
   const projection=getMonthProjection(ym,catFilter);
   const income=getMonthIncome(ym,catFilter);
+  // Card de despesas: soma avulsas + fixas pagas (recorrências account)
+  const {fixedTotal, regularTotal} = getMonthExpensesDetailed(ym, catFilter);
+  const totalExpenses = fixedTotal + regularTotal;
   // Fix 8 & 9: balance is now tracked via explicit account adjustments
   const totalBal = getTotalBalance(ym);
   const balColor = totalBal < 0 ? 'var(--red)' : 'inherit';
@@ -1050,9 +1137,11 @@ function renderDashboard() {
   setEl('card-balance',`<span style="color:${balColor}">${balSign}${fmt(totalBal)}</span>`);
   setEl('card-income',fmt(income));
   setEl('card-invoice',fmt(cardInv));
-  setEl('card-expenses',fmt(accountExp));
+  setEl('card-expenses',fmt(totalExpenses));
   setEl('card-projection',fmt(projection));
   renderAccountBreakdown();
+  renderExpensesBreakdown(ym, catFilter);
+  renderProjectionBreakdown(ym, catFilter);
 
   // Recent
   let allTx=getMonthTransactions(ym);
@@ -1098,6 +1187,55 @@ function setEl(id,html){const el=document.getElementById(id);if(el)el.innerHTML=
 function toggleAccountBreakdown() {
   const detail = document.getElementById('account-breakdown-detail');
   const icon = document.getElementById('account-expand-icon');
+  if(!detail) return;
+  const hidden = detail.classList.toggle('hidden');
+  if(icon) icon.style.transform = hidden ? '' : 'rotate(180deg)';
+}
+
+// Retorna despesas fixas (recorrências account pagas) do mês, separadas das avulsas
+function getMonthExpensesDetailed(ym, catFilter='') {
+  const txs = getMonthTransactions(ym);
+  const fixed = txs.filter(t => t._source==='recurring' && (t.type==='debit'||t.type==='account') && (!catFilter||t.category===catFilter));
+  const regular = txs.filter(t => t._source==='transaction' && (t.type==='debit'||t.type==='account') && (!catFilter||t.category===catFilter));
+  return { fixed, regular,
+    fixedTotal: fixed.reduce((s,t)=>s+t.amount,0),
+    regularTotal: regular.reduce((s,t)=>s+t.amount,0) };
+}
+
+function renderExpensesBreakdown(ym, catFilter='') {
+  const el = document.getElementById('expenses-breakdown-detail');
+  if(!el) return;
+  const {fixed, regular, fixedTotal, regularTotal} = getMonthExpensesDetailed(ym, catFilter);
+  let html = '';
+  if(fixed.length>0) {
+    html += `<div class="text-xs font-bold uppercase mb-1" style="color:var(--blue)">Despesas Fixas</div>`;
+    html += fixed.map(t=>`<div class="flex items-center justify-between py-1">
+      <span class="text-xs text-white truncate flex-1 mr-2">${escHtml(t.description)}</span>
+      <span class="text-xs font-semibold" style="color:var(--red)">- ${fmt(t.amount)}</span>
+    </div>`).join('');
+    html += `<div class="flex justify-between pt-1 mt-1 mb-2" style="border-top:1px solid var(--border)">
+      <span class="text-xs" style="color:var(--text-muted)">Subtotal fixas</span>
+      <span class="text-xs font-bold" style="color:var(--red)">- ${fmt(fixedTotal)}</span>
+    </div>`;
+  }
+  if(regular.length>0) {
+    html += `<div class="text-xs font-bold uppercase mb-1" style="color:var(--blue)">Despesas Avulsas</div>`;
+    html += regular.map(t=>`<div class="flex items-center justify-between py-1">
+      <span class="text-xs text-white truncate flex-1 mr-2">${escHtml(t.description)}</span>
+      <span class="text-xs font-semibold" style="color:var(--red)">- ${fmt(t.amount)}</span>
+    </div>`).join('');
+    html += `<div class="flex justify-between pt-1 mt-1" style="border-top:1px solid var(--border)">
+      <span class="text-xs" style="color:var(--text-muted)">Subtotal avulsas</span>
+      <span class="text-xs font-bold" style="color:var(--red)">- ${fmt(regularTotal)}</span>
+    </div>`;
+  }
+  if(!html) html = `<div class="text-xs" style="color:var(--text-muted)">Nenhuma despesa neste mês</div>`;
+  el.innerHTML = html;
+}
+
+function toggleExpensesBreakdown() {
+  const detail = document.getElementById('expenses-breakdown-detail');
+  const icon = document.getElementById('expenses-expand-icon');
   if(!detail) return;
   const hidden = detail.classList.toggle('hidden');
   if(icon) icon.style.transform = hidden ? '' : 'rotate(180deg)';
