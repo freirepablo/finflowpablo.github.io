@@ -377,7 +377,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
   <div id="page-card" class="page">
     <div class="card mb-4">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="font-bold text-white">Fatura do Cartão</h3>
+        <h3 class="font-bold text-white" id="card-invoice-title">Fatura do Cartão</h3>
         <div class="flex items-center gap-2"><div id="card-invoice-paid-badge"></div><div id="card-closing-badge"></div></div>
       </div>
       <div class="grid grid-cols-2 gap-4 mb-4">
@@ -385,6 +385,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
         <div><div class="text-xs" style="color:var(--text-muted)">Parcelas futuras comprometidas</div><div id="future-installments" class="text-xl font-semibold" style="color:var(--yellow)">R$ 0,00</div></div>
       </div>
       <div id="invoice-pay-area" class="flex items-center gap-3 mt-2"></div>
+      <div id="card-next-invoice-preview" class="hidden mt-3 pt-3" style="border-top:1px solid var(--border)"></div>
     </div>
     <div class="card"><h3 class="font-bold text-sm text-white mb-4">Lançamentos no Cartão</h3><div id="card-tx-list"></div></div>
   </div>
@@ -761,6 +762,7 @@ let currentPage = 'dashboard';
 let currentTxTab = 'all';
 let currentTxType = 'debit';
 let currentRecType = 'account';
+let currentCardInvoiceYm = null;
 let chartCat = null, chartMonthly = null, chartLimits = null;
 
 /* ============================================================
@@ -929,6 +931,33 @@ function getMonthAccountExpenses(ym, catFilter='') {
 function getMonthCardInvoice(ym, catFilter='') {
   return getMonthTransactions(ym)
     .filter(t=>(t.type==='credit'||t.type==='card')&&(!catFilter||t.category===catFilter))
+    .reduce((s,t)=>s+t.amount,0);
+}
+
+// ---- Ciclo de fatura do cartão (baseado no dia de fechamento) ----
+// Dias >= closingDay já pertencem à fatura do mês seguinte (comportamento padrão dos cartões).
+function getInvoiceMonthForDate(dateStr, closingDay) {
+  const [y,m,d]=dateStr.split('-').map(Number);
+  if (d>=closingDay) {
+    const nd=new Date(y,m,1); // mês seguinte (com rollover de ano automático)
+    return monthStr(nd.getFullYear(), nd.getMonth());
+  }
+  return monthStr(y, m-1);
+}
+function prevInvoiceMonth(ym) {
+  const [y,m]=ym.split('-').map(Number);
+  const d=new Date(y,m-2,1);
+  return monthStr(d.getFullYear(),d.getMonth());
+}
+// Fatura que está em aberto HOJE (data real), independente do mês navegado no app
+function getOpenInvoiceMonth() {
+  return getInvoiceMonthForDate(todayStr(), state.settings.closingDay||22);
+}
+// Total de uma fatura específica, somando as transações de cartão pelo ciclo de fechamento (não pelo mês-calendário)
+function getInvoiceTotal(ym) {
+  const closingDay=state.settings.closingDay||22;
+  return state.transactions
+    .filter(t=>(t.type==='credit'||t.type==='card') && getInvoiceMonthForDate(t.date,closingDay)===ym)
     .reduce((s,t)=>s+t.amount,0);
 }
 
@@ -1239,6 +1268,24 @@ function setTxTab(tab) {
   renderTransactions();
 }
 
+// Agrupa transações de cartão em seções "Fatura de Mês", usando o ciclo de fechamento
+function renderTxGroupedByInvoice(txs) {
+  const closingDay=state.settings.closingDay||22;
+  const groups={};
+  for(const t of txs){
+    const inv=getInvoiceMonthForDate(t.date,closingDay);
+    (groups[inv]=groups[inv]||[]).push(t);
+  }
+  const yms=Object.keys(groups).sort((a,b)=>b.localeCompare(a));
+  return yms.map(ym=>`
+    <div class="flex items-center gap-2 mt-4 mb-2">
+      <span class="text-xs font-bold uppercase" style="color:var(--purple)">Fatura de ${monthLabel(ym)}</span>
+      <div class="flex-1" style="height:1px;background:var(--border)"></div>
+    </div>
+    ${groups[ym].map(t=>txItemHTML(t)).join('')}
+  `).join('');
+}
+
 function renderTransactions() {
   const ym=state.currentMonth;
   let txs=getMonthTransactions(ym);
@@ -1251,30 +1298,50 @@ function renderTransactions() {
   const el=document.getElementById('tx-list');
   el.innerHTML=txs.length===0
     ?'<div class="empty-state"><i class="fa-solid fa-list-ul"></i><br>Nenhuma transação encontrada</div>'
-    :txs.map(t=>txItemHTML(t)).join('');
+    :currentTxTab==='card'?renderTxGroupedByInvoice(txs):txs.map(t=>txItemHTML(t)).join('');
 }
 
 /* ============================================================
    CARD PAGE
 ============================================================ */
 function renderCardPage() {
-  const ym=state.currentMonth;
-  const txs=getMonthTransactions(ym).filter(t=>t.type==='credit'||t.type==='card');
-  const total=txs.reduce((s,t)=>s+t.amount,0);
+  const closingDay=state.settings.closingDay||22;
+  const openYm=getOpenInvoiceMonth();
+  const closedYm=prevInvoiceMonth(openYm);
+  const closedTotal=getInvoiceTotal(closedYm);
+  const closedPaid=state.invoicePaid?.[closedYm];
+  // Mostra a última fatura fechada como principal enquanto ela não for paga; depois disso, mostra a fatura aberta.
+  const showClosedAsMain=closedTotal>0&&!closedPaid;
+  const mainYm=showClosedAsMain?closedYm:openYm;
+  const mainTotal=showClosedAsMain?closedTotal:getInvoiceTotal(openYm);
+  currentCardInvoiceYm=mainYm;
+
   let futureTotal=0;
-  const[cy,cm]=ym.split('-').map(Number);
   for(const tx of state.transactions){
     if(tx.type!=='credit'||!tx._installmentOf)continue;
-    const txMonth=tx.date.slice(0,7);
-    const[ty,tm]=txMonth.split('-').map(Number);
-    if(ty>cy||(ty===cy&&tm>cm))futureTotal+=tx.amount;
+    if(getInvoiceMonthForDate(tx.date,closingDay)>mainYm)futureTotal+=tx.amount;
   }
-  setEl('invoice-total',fmt(total));
+  setEl('invoice-total',fmt(mainTotal));
   setEl('future-installments',fmt(futureTotal));
-  const closingDay=state.settings.closingDay||22;
-  document.getElementById('card-closing-badge').innerHTML=`<span class="badge" style="background:rgba(234,179,8,.15);color:var(--yellow)"><i class="fa-solid fa-calendar mr-1"></i>Fecha dia ${closingDay}</span>`;
+  setEl('card-invoice-title',`Fatura de ${monthLabel(mainYm)}`);
+  document.getElementById('card-closing-badge').innerHTML=showClosedAsMain
+    ?`<span class="badge" style="background:rgba(244,63,94,.15);color:var(--red)"><i class="fa-solid fa-lock mr-1"></i>Fechada</span>`
+    :`<span class="badge" style="background:rgba(234,179,8,.15);color:var(--yellow)"><i class="fa-solid fa-lock-open mr-1"></i>Em aberto · fecha dia ${closingDay}</span>`;
+
+  const nextPreviewEl=document.getElementById('card-next-invoice-preview');
+  if(nextPreviewEl){
+    if(showClosedAsMain){
+      const openTotal=getInvoiceTotal(openYm);
+      nextPreviewEl.innerHTML=`<div class="text-xs" style="color:var(--text-muted)">Próxima fatura (em aberto)</div><div class="text-sm font-semibold text-white">${monthLabel(openYm)} · ${fmt(openTotal)}</div>`;
+      nextPreviewEl.classList.remove('hidden');
+    } else {
+      nextPreviewEl.innerHTML='';
+      nextPreviewEl.classList.add('hidden');
+    }
+  }
+
   // Fix 4: Pay invoice button
-  const paid=state.invoicePaid?.[ym];
+  const paid=state.invoicePaid?.[mainYm];
   const paidBadgeEl=document.getElementById('card-invoice-paid-badge');
   const payAreaEl=document.getElementById('invoice-pay-area');
   if(paidBadgeEl){
@@ -1285,19 +1352,22 @@ function renderCardPage() {
       const accLabel=ACCOUNT_TYPES.find(a=>a.id===paid.accountId)?.label||paid.accountId;
       payAreaEl.innerHTML=`<span class="text-xs" style="color:var(--text-muted)"><i class="fa-solid fa-building-columns mr-1"></i>Paga via ${accLabel}</span><button class="btn btn-danger btn-sm ml-auto" onclick="unpayInvoice()"><i class="fa-solid fa-rotate-left"></i> Desfazer</button>`;
     } else {
-      payAreaEl.innerHTML=total>0?`<button class="btn btn-primary" onclick="openPayInvoice()"><i class="fa-solid fa-money-bill-wave"></i> Pagar Fatura</button><span class="text-xs ml-2" style="color:var(--text-muted)">O saldo só será debitado ao confirmar.</span>`:'';
+      payAreaEl.innerHTML=mainTotal>0?`<button class="btn btn-primary" onclick="openPayInvoice()"><i class="fa-solid fa-money-bill-wave"></i> Pagar Fatura</button><span class="text-xs ml-2" style="color:var(--text-muted)">O saldo só será debitado ao confirmar.</span>`:'';
     }
   }
+
+  // Lista de lançamentos: mantém o filtro pelo mês navegado, como já era, só agrupando por fatura
+  const ym=state.currentMonth;
+  const txs=getMonthTransactions(ym).filter(t=>t.type==='credit'||t.type==='card');
   txs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
   const el=document.getElementById('card-tx-list');
-  el.innerHTML=txs.length===0?'<div class="empty-state"><i class="fa-solid fa-credit-card"></i><br>Nenhum lançamento</div>':txs.map(t=>txItemHTML(t)).join('');
+  el.innerHTML=txs.length===0?'<div class="empty-state"><i class="fa-solid fa-credit-card"></i><br>Nenhum lançamento</div>':renderTxGroupedByInvoice(txs);
 }
 
 // Fix 4: open pay invoice modal
 function openPayInvoice() {
-  const ym=state.currentMonth;
-  const txs=getMonthTransactions(ym).filter(t=>t.type==='credit'||t.type==='card');
-  const total=txs.reduce((s,t)=>s+t.amount,0);
+  const ym=currentCardInvoiceYm||state.currentMonth;
+  const total=getInvoiceTotal(ym);
   document.getElementById('pay-invoice-month').textContent=monthLabel(ym);
   document.getElementById('pay-invoice-total').textContent=fmt(total);
   populateAccountSelects();
@@ -1305,10 +1375,9 @@ function openPayInvoice() {
 }
 
 function confirmPayInvoice() {
-  const ym=state.currentMonth;
+  const ym=currentCardInvoiceYm||state.currentMonth;
   const accountId=document.getElementById('pay-invoice-account').value;
-  const txs=getMonthTransactions(ym).filter(t=>t.type==='credit'||t.type==='card');
-  const total=txs.reduce((s,t)=>s+t.amount,0);
+  const total=getInvoiceTotal(ym);
   if(!state.invoicePaid)state.invoicePaid={};
   state.invoicePaid[ym]={paid:true,accountId,amount:total,date:todayStr()};
   adjustAccountBalance(accountId,-total);
@@ -1317,7 +1386,7 @@ function confirmPayInvoice() {
 }
 
 function unpayInvoice() {
-  const ym=state.currentMonth;
+  const ym=currentCardInvoiceYm||state.currentMonth;
   const paid=state.invoicePaid?.[ym];
   if(!paid||!confirm('Desfazer pagamento da fatura?'))return;
   adjustAccountBalance(paid.accountId, paid.amount);
