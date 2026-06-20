@@ -430,9 +430,14 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 
   <!-- SAVINGS -->
   <div id="page-savings" class="page">
+    <div class="flex items-center gap-2 mb-4 overflow-x-auto" id="savings-box-tabs" style="padding-bottom:4px"></div>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div class="card text-center">
-        <h3 class="font-bold text-white mb-2">Minha Caixinha</h3>
+        <div class="flex items-center justify-center gap-2 mb-2">
+          <h3 class="font-bold text-white" id="piggy-box-name">Minha Caixinha</h3>
+          <button class="btn btn-ghost btn-icon" style="width:28px;height:28px" onclick="openRenameSavingsBox()" title="Renomear caixinha"><i class="fa-solid fa-pen text-xs"></i></button>
+          <button class="btn btn-ghost btn-icon" style="width:28px;height:28px" onclick="deleteSavingsBox()" title="Excluir caixinha"><i class="fa-solid fa-trash text-xs" style="color:var(--red)"></i></button>
+        </div>
         <p class="text-xs mb-6" style="color:var(--text-muted)">Dinheiro guardado separado do saldo da conta</p>
         <div class="flex items-center justify-center mb-4">
           <svg width="160" height="160" viewBox="0 0 100 100">
@@ -669,6 +674,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 <div id="modal-piggy-add" class="modal-overlay"><div class="modal-box">
   <div class="flex items-center justify-between mb-5"><h2 class="font-bold text-white text-lg">Depositar na Caixinha</h2><button class="btn btn-ghost btn-icon" onclick="closeModal('piggy-add')"><i class="fa-solid fa-xmark"></i></button></div>
   <div class="mb-4"><label class="label">Valor (R$)</label><input type="number" class="input" id="piggy-add-amount" step="0.01" min="0.01" placeholder="0,00"/></div>
+  <div class="mb-4"><label class="label">Debitar da conta</label><select class="select" id="piggy-add-account"></select></div>
   <div class="mb-4"><label class="label">Descrição (opcional)</label><input type="text" class="input" id="piggy-add-desc" placeholder="Ex: Economia do mês"/></div>
   <div class="flex gap-2 justify-end"><button class="btn btn-ghost" onclick="closeModal('piggy-add')">Cancelar</button><button class="btn btn-primary" onclick="piggyDeposit()"><i class="fa-solid fa-plus"></i> Depositar</button></div>
 </div></div>
@@ -731,6 +737,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 const CATEGORIES = [
   { id:'alimentacao',  label:'Alimentação',       icon:'fa-utensils',        color:'#f97316' },
   { id:'assinaturas',  label:'Assinaturas',        icon:'fa-tv',              color:'#e11d48' },
+  { id:'caixinha',     label:'Caixinha',           icon:'fa-piggy-bank',      color:'#14b8a6' },
   { id:'cuidados',     label:'Cuidados Pessoais',  icon:'fa-spa',             color:'#ec4899' },
   { id:'doacoes',      label:'Doações',            icon:'fa-hand-holding-heart', color:'#f43f5e' },
   { id:'educacao',     label:'Educação',           icon:'fa-graduation-cap',  color:'#0ea5e9' },
@@ -773,6 +780,8 @@ let state = {
   recurring: [],
   recurringOverrides: {},
   savings: { balance:0, goal:0, history:[] },
+  savingsBoxes: [{ id:'default', name:'Minha Caixinha', balance:0, goal:0, history:[] }],
+  currentSavingsBox: 'default',
   settings: { closingDay:22, initialBalance:0 },
   categoryLimits: {}, // { catId: amount }
   currentMonth: null,
@@ -1206,32 +1215,19 @@ function getMonthExpensesDetailed(ym, catFilter='') {
 function renderExpensesBreakdown(ym, catFilter='') {
   const el = document.getElementById('expenses-breakdown-detail');
   if(!el) return;
-  const {fixed, regular, fixedTotal, regularTotal} = getMonthExpensesDetailed(ym, catFilter);
-  let html = '';
-  if(fixed.length>0) {
-    html += `<div class="text-xs font-bold uppercase mb-1" style="color:var(--blue)">Despesas Fixas</div>`;
-    html += fixed.map(t=>`<div class="flex items-center justify-between py-1">
-      <span class="text-xs text-white truncate flex-1 mr-2">${escHtml(t.description)}</span>
-      <span class="text-xs font-semibold" style="color:var(--red)">- ${fmt(t.amount)}</span>
-    </div>`).join('');
-    html += `<div class="flex justify-between pt-1 mt-1 mb-2" style="border-top:1px solid var(--border)">
-      <span class="text-xs" style="color:var(--text-muted)">Subtotal fixas</span>
-      <span class="text-xs font-bold" style="color:var(--red)">- ${fmt(fixedTotal)}</span>
+  const {fixedTotal, regularTotal} = getMonthExpensesDetailed(ym, catFilter);
+  const row = (label, value, sub='') => `
+    <div class="flex items-center justify-between py-1">
+      <div><span class="text-xs text-white">${label}</span>${sub?`<div class="text-xs" style="color:var(--text-muted)">${sub}</div>`:''}</div>
+      <span class="text-xs font-semibold" style="color:var(--red)">- ${fmt(value)}</span>
     </div>`;
-  }
-  if(regular.length>0) {
-    html += `<div class="text-xs font-bold uppercase mb-1" style="color:var(--blue)">Despesas Avulsas</div>`;
-    html += regular.map(t=>`<div class="flex items-center justify-between py-1">
-      <span class="text-xs text-white truncate flex-1 mr-2">${escHtml(t.description)}</span>
-      <span class="text-xs font-semibold" style="color:var(--red)">- ${fmt(t.amount)}</span>
-    </div>`).join('');
-    html += `<div class="flex justify-between pt-1 mt-1" style="border-top:1px solid var(--border)">
-      <span class="text-xs" style="color:var(--text-muted)">Subtotal avulsas</span>
-      <span class="text-xs font-bold" style="color:var(--red)">- ${fmt(regularTotal)}</span>
+  el.innerHTML =
+    row('Gastos avulsos', regularTotal, 'lançados no mês') +
+    row('Gastos recorrentes', fixedTotal, 'recorrências de conta pagas') +
+    `<div class="flex justify-between pt-1 mt-1" style="border-top:1px solid var(--border)">
+      <span class="text-xs font-bold" style="color:var(--text-muted)">Total</span>
+      <span class="text-xs font-bold" style="color:var(--red)">- ${fmt(fixedTotal+regularTotal)}</span>
     </div>`;
-  }
-  if(!html) html = `<div class="text-xs" style="color:var(--text-muted)">Nenhuma despesa neste mês</div>`;
-  el.innerHTML = html;
 }
 
 function toggleExpensesBreakdown() {
@@ -1726,8 +1722,64 @@ function unpayRecurring(recId) {
 /* ============================================================
    SAVINGS
 ============================================================ */
+function getCurrentSavingsBox() {
+  if(!state.savingsBoxes||state.savingsBoxes.length===0){
+    state.savingsBoxes=[{id:'default',name:'Minha Caixinha',balance:0,goal:0,history:[]}];
+    state.currentSavingsBox='default';
+  }
+  let box=state.savingsBoxes.find(b=>b.id===state.currentSavingsBox);
+  if(!box){box=state.savingsBoxes[0];state.currentSavingsBox=box.id;}
+  return box;
+}
+
+function renderSavingsBoxTabs() {
+  const el=document.getElementById('savings-box-tabs');
+  if(!el)return;
+  const boxes=state.savingsBoxes||[];
+  el.innerHTML=boxes.map(b=>`<button class="btn ${b.id===state.currentSavingsBox?'btn-primary':'btn-ghost'} btn-sm" style="white-space:nowrap;flex-shrink:0" onclick="selectSavingsBox('${b.id}')"><i class="fa-solid fa-piggy-bank"></i> ${escHtml(b.name)}</button>`).join('')
+    +`<button class="btn btn-ghost btn-sm" style="white-space:nowrap;flex-shrink:0" onclick="addSavingsBox()"><i class="fa-solid fa-plus"></i> Nova Caixinha</button>`;
+}
+
+function selectSavingsBox(id) {
+  state.currentSavingsBox=id;saveState();renderSavings();
+}
+
+function addSavingsBox() {
+  const name=prompt('Nome da nova caixinha:','');
+  if(name===null)return;
+  const trimmed=name.trim();
+  if(!trimmed){toast('Informe um nome válido','error');return;}
+  const box={id:uid(),name:trimmed,balance:0,goal:0,history:[]};
+  state.savingsBoxes.push(box);
+  state.currentSavingsBox=box.id;
+  saveState();renderSavings();toast('Caixinha criada!');
+}
+
+function openRenameSavingsBox() {
+  const box=getCurrentSavingsBox();if(!box)return;
+  const name=prompt('Renomear caixinha:',box.name);
+  if(name===null)return;
+  const trimmed=name.trim();
+  if(!trimmed){toast('Informe um nome válido','error');return;}
+  box.name=trimmed;
+  saveState();renderSavings();toast('Caixinha renomeada!');
+}
+
+function deleteSavingsBox() {
+  if(state.savingsBoxes.length<=1){toast('Você precisa manter ao menos uma caixinha','error');return;}
+  const box=getCurrentSavingsBox();if(!box)return;
+  if(!confirm(`Excluir a caixinha "${box.name}"? O dinheiro guardado nela e o histórico serão perdidos.`))return;
+  state.savingsBoxes=state.savingsBoxes.filter(b=>b.id!==box.id);
+  state.currentSavingsBox=state.savingsBoxes[0].id;
+  saveState();renderSavings();toast('Caixinha excluída.','info');
+}
+
 function renderSavings() {
-  const{balance,goal,history}=state.savings;
+  renderSavingsBoxTabs();
+  const box=getCurrentSavingsBox();
+  if(!box)return;
+  const{balance,goal,history}=box;
+  document.getElementById('piggy-box-name').textContent=box.name;
   document.getElementById('piggy-amount').textContent=fmt(balance);
   document.getElementById('piggy-goal-text').textContent=`Meta: ${fmt(goal)}`;
   const pct=goal>0?Math.min(balance/goal,1):0;
@@ -1746,27 +1798,37 @@ function renderSavings() {
 }
 
 function piggyDeposit(){
+  const box=getCurrentSavingsBox();if(!box)return;
   const amount=parseFloat(document.getElementById('piggy-add-amount').value);
   const desc=document.getElementById('piggy-add-desc').value.trim();
+  const accountId=document.getElementById('piggy-add-account')?.value||'contacorrente';
   if(!amount||amount<=0){toast('Informe um valor válido','error');return;}
-  state.savings.balance+=amount;
-  state.savings.history.push({id:uid(),type:'deposit',amount,desc,date:todayStr()});
+  box.balance+=amount;
+  box.history.push({id:uid(),type:'deposit',amount,desc,date:todayStr()});
+  // Registra como transação para aparecer em Transações e subtrai do saldo em conta
+  state.transactions.push({
+    id:uid(),type:'debit',description:`Depósito - ${box.name}`,amount,date:todayStr(),
+    category:'caixinha',notes:desc,accountId,_savingsBoxId:box.id
+  });
+  adjustAccountBalance(accountId,-amount);
   saveState();closeModal('piggy-add');renderSavings();toast('Depósito realizado!');
 }
 
 function piggyWithdraw(){
+  const box=getCurrentSavingsBox();if(!box)return;
   const amount=parseFloat(document.getElementById('piggy-withdraw-amount').value);
   const desc=document.getElementById('piggy-withdraw-desc').value.trim();
   if(!amount||amount<=0){toast('Informe um valor válido','error');return;}
-  if(amount>state.savings.balance){toast('Saldo insuficiente na caixinha','error');return;}
-  state.savings.balance-=amount;
-  state.savings.history.push({id:uid(),type:'withdraw',amount,desc,date:todayStr()});
+  if(amount>box.balance){toast('Saldo insuficiente na caixinha','error');return;}
+  box.balance-=amount;
+  box.history.push({id:uid(),type:'withdraw',amount,desc,date:todayStr()});
   saveState();closeModal('piggy-withdraw');renderSavings();toast('Retirada realizada!');
 }
 
 function setPiggyGoal(){
+  const box=getCurrentSavingsBox();if(!box)return;
   const goal=parseFloat(document.getElementById('piggy-goal-amount').value)||0;
-  state.savings.goal=goal;saveState();closeModal('piggy-goal');renderSavings();toast('Meta atualizada!');
+  box.goal=goal;saveState();closeModal('piggy-goal');renderSavings();toast('Meta atualizada!');
 }
 
 /* ============================================================
@@ -1848,9 +1910,9 @@ function openModal(name) {
   if(name==='add-tx'){document.getElementById('tx-date').value=todayStr();document.getElementById('tx-description').value='';document.getElementById('tx-amount').value='';document.getElementById('tx-notes').value='';document.getElementById('tx-installment-check').checked=false;document.getElementById('installment-count-wrap').classList.add('hidden');document.getElementById('tx-installments').value=2;setTxType('debit');populateAccountSelects();}
   if(name==='add-income'){document.getElementById('income-date').value=todayStr();document.getElementById('income-description').value='';document.getElementById('income-amount').value='';document.getElementById('income-notes').value='';populateAccountSelects();}
   if(name==='add-recurring'){document.getElementById('rec-description').value='';document.getElementById('rec-amount').value='';document.getElementById('rec-day').value='';setRecType('account');}
-  if(name==='piggy-add'){document.getElementById('piggy-add-amount').value='';document.getElementById('piggy-add-desc').value='';}
+  if(name==='piggy-add'){document.getElementById('piggy-add-amount').value='';document.getElementById('piggy-add-desc').value='';populateAccountSelects();}
   if(name==='piggy-withdraw'){document.getElementById('piggy-withdraw-amount').value='';document.getElementById('piggy-withdraw-desc').value='';}
-  if(name==='piggy-goal'){document.getElementById('piggy-goal-amount').value=state.savings.goal||'';}
+  if(name==='piggy-goal'){const box=getCurrentSavingsBox();document.getElementById('piggy-goal-amount').value=box?.goal||'';}
 }
 
 function closeModal(name){const el=document.getElementById(`modal-${name}`);if(el)el.classList.remove('open');}
@@ -2059,7 +2121,7 @@ function populateAllCategorySelects() {
 
 function populateAccountSelects() {
   const opts = ACCOUNT_TYPES.map(a=>`<option value="${a.id}">${a.label}</option>`).join('');
-  ['income-account','tx-account','edit-tx-account','pay-invoice-account','pay-rec-account','rec-account'].forEach(id=>{
+  ['income-account','tx-account','edit-tx-account','pay-invoice-account','pay-rec-account','rec-account','piggy-add-account'].forEach(id=>{
     const el=document.getElementById(id);if(el)el.innerHTML=opts;
   });
 }
@@ -2209,6 +2271,14 @@ function init(){
   if(!state.accountBalances)state.accountBalances={};
   if(!state.invoicePaid)state.invoicePaid={};
   if(!state.recurringPaid)state.recurringPaid={};
+  // Migração: se ainda não existe savingsBoxes (versão antiga), converte a Caixinha única existente na primeira caixinha
+  if(!state.savingsBoxes||state.savingsBoxes.length===0){
+    const old=state.savings||{balance:0,goal:0,history:[]};
+    state.savingsBoxes=[{id:'default',name:'Minha Caixinha',balance:old.balance||0,goal:old.goal||0,history:old.history||[]}];
+  }
+  if(!state.currentSavingsBox||!state.savingsBoxes.find(b=>b.id===state.currentSavingsBox)){
+    state.currentSavingsBox=state.savingsBoxes[0].id;
+  }
   populateAllCategorySelects();
   updateMonthLabel();
   renderDashboard();
