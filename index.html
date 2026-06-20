@@ -834,7 +834,20 @@ function parseBRL(str) {
   return parseFloat(s.replace(/\./g,'').replace(',','.'));
 }
 function formatAmountInput(input){
-  let v=input.value.replace(/[^\d,]/g,'');
+  // Fix iOS: o teclado decimal do iPhone geralmente só mostra "." (não ","), e o ponto
+  // era descartado pelo filtro abaixo, dando a impressão de que a vírgula "não aparecia".
+  // Convertemos "." em "," apenas quando ele parece um separador decimal (até 2 dígitos depois,
+  // como ao digitar centavos no iPhone). Pontos de milhar (3 dígitos depois, ex: colar "1.540")
+  // continuam sendo descartados como sempre foram, preservando o comportamento original.
+  let v=input.value;
+  if(!v.includes(',')){
+    const lastDot=v.lastIndexOf('.');
+    if(lastDot!==-1){
+      const decimalsAfter=v.length-lastDot-1;
+      if(decimalsAfter<=2) v=v.slice(0,lastDot)+','+v.slice(lastDot+1);
+    }
+  }
+  v=v.replace(/[^\d,]/g,'');
   const parts=v.split(',');
   if(parts.length>2)v=parts[0]+','+parts.slice(1).join('');
   input.value=v;
