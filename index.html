@@ -382,6 +382,19 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
         </div>
         <select class="select text-xs w-auto" id="tx-filter-cat" onchange="renderTransactions()"><option value="">Todas as categorias</option></select>
       </div>
+      <div class="flex flex-wrap gap-2 mt-3 mb-1">
+        <div class="flex items-center gap-2 flex-1" style="min-width:160px">
+          <i class="fa-solid fa-magnifying-glass text-xs" style="color:var(--text-muted)"></i>
+          <input type="text" class="input" id="tx-search" placeholder="Buscar por nome ou valor…" oninput="renderTransactions()" style="padding:6px 10px;font-size:13px"/>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="date" class="input" id="tx-date-from" onchange="renderTransactions()" style="padding:6px 10px;font-size:13px;width:auto" title="Data inicial"/>
+          <span class="text-xs" style="color:var(--text-muted)">até</span>
+          <input type="date" class="input" id="tx-date-to" onchange="renderTransactions()" style="padding:6px 10px;font-size:13px;width:auto" title="Data final"/>
+          <button class="btn btn-ghost btn-icon" onclick="clearTxFilters()" title="Limpar filtros" id="tx-clear-filters" style="display:none"><i class="fa-solid fa-xmark text-xs"></i></button>
+        </div>
+      </div>
+      <div id="tx-results-info" class="text-xs mb-2" style="color:var(--text-muted);display:none"></div>
       <div id="tx-list"></div>
     </div>
   </div>
@@ -1463,19 +1476,89 @@ function renderTxGroupedByInvoice(txs) {
   `).join('');
 }
 
+function clearTxFilters() {
+  const s=document.getElementById('tx-search'); if(s)s.value='';
+  const df=document.getElementById('tx-date-from'); if(df)df.value='';
+  const dt=document.getElementById('tx-date-to'); if(dt)dt.value='';
+  renderTransactions();
+}
+
 function renderTransactions() {
   const ym=state.currentMonth;
-  let txs=getMonthTransactions(ym);
+  const searchRaw=(document.getElementById('tx-search')?.value||'').trim();
+  const dateFrom=document.getElementById('tx-date-from')?.value||'';
+  const dateTo=document.getElementById('tx-date-to')?.value||'';
+  const hasSearch=searchRaw!==''||dateFrom!==''||dateTo!=='';
+
+  // Mostrar/esconder botão de limpar filtros
+  const clearBtn=document.getElementById('tx-clear-filters');
+  if(clearBtn)clearBtn.style.display=hasSearch?'':'none';
+
+  // Quando há busca ou filtro de data: busca em TODAS as transações do histórico
+  // Quando não há: comportamento original (só o mês navegado)
+  let txs = hasSearch ? getMonthTransactions(ym) : getMonthTransactions(ym);
+  if(hasSearch && (dateFrom||dateTo)) {
+    // Se há filtro de data, expande a busca para TODAS as transações (não só o mês)
+    txs = [];
+    const allMonths = getAllMonthsUpTo(state.currentMonth);
+    // Inclui também meses futuros próximos para parcelas etc.
+    const [cy,cm]=state.currentMonth.split('-').map(Number);
+    const futureMonths=[1,2,3,4,5,6].map(i=>{const d=new Date(cy,cm-1+i,1);return monthStr(d.getFullYear(),d.getMonth());});
+    for(const m of [...new Set([...allMonths,...futureMonths])]) {
+      txs.push(...getMonthTransactions(m));
+    }
+    // Deduplicar por id
+    const seen=new Set(); txs=txs.filter(t=>{if(seen.has(t.id))return false;seen.add(t.id);return true;});
+  } else if(hasSearch) {
+    // Busca por nome/valor sem filtro de data: busca em todo o histórico também
+    txs = [];
+    const allMonths = getAllMonthsUpTo(state.currentMonth);
+    for(const m of allMonths) txs.push(...getMonthTransactions(m));
+    const seen=new Set(); txs=txs.filter(t=>{if(seen.has(t.id))return false;seen.add(t.id);return true;});
+  }
+
+  // Filtros de aba e categoria
   if(currentTxTab==='income') txs=txs.filter(t=>isIncome(t));
   else if(currentTxTab==='account') txs=txs.filter(t=>t.type==='debit'||t.type==='account');
   else if(currentTxTab==='card') txs=txs.filter(t=>t.type==='credit'||t.type==='card');
   const catFilter=document.getElementById('tx-filter-cat')?.value;
   if(catFilter)txs=txs.filter(t=>t.category===catFilter);
+
+  // Filtro de data
+  if(dateFrom) txs=txs.filter(t=>t.date>=dateFrom);
+  if(dateTo)   txs=txs.filter(t=>t.date<=dateTo);
+
+  // Busca por nome ou valor
+  if(searchRaw) {
+    const q=searchRaw.toLowerCase();
+    const qNum=parseBRL(searchRaw.replace('.',','));
+    txs=txs.filter(t=>{
+      if(t.description&&t.description.toLowerCase().includes(q))return true;
+      if(!isNaN(qNum)&&Math.abs(t.amount-qNum)<0.005)return true;
+      return false;
+    });
+  }
+
   txs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+
+  // Info de resultados
+  const infoEl=document.getElementById('tx-results-info');
+  if(infoEl){
+    if(hasSearch){
+      infoEl.style.display='';
+      const total=txs.reduce((s,t)=>s+(isIncome(t)?t.amount:-t.amount),0);
+      infoEl.textContent=`${txs.length} resultado${txs.length!==1?'s':''} · saldo do período: ${total>=0?'+':''}${fmt(Math.abs(total))}`;
+    } else {
+      infoEl.style.display='none';
+    }
+  }
+
   const el=document.getElementById('tx-list');
   el.innerHTML=txs.length===0
     ?'<div class="empty-state"><i class="fa-solid fa-list-ul"></i><br>Nenhuma transação encontrada</div>'
-    :currentTxTab==='card'?renderTxGroupedByInvoice(txs):txs.map(t=>txItemHTML(t)).join('');
+    :hasSearch
+      ? txs.map(t=>txItemHTML(t)).join('') // na busca, mostra sem agrupar por fatura (mais claro)
+      : currentTxTab==='card'?renderTxGroupedByInvoice(txs):txs.map(t=>txItemHTML(t)).join('');
 }
 
 /* ============================================================
