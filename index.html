@@ -1280,22 +1280,27 @@ function txItemHTML(t,clickable=true) {
   const income=isIncome(t);
   const amountColor=income?'var(--green)':'var(--red)';
   const sign=income?'+':'-';
-  const badge=t.isRecurring?`<span class="badge ml-2" style="background:rgba(59,130,246,.15);color:var(--blue)"><i class="fa-solid fa-rotate text-xs"></i></span>`:'';
-  const installBadge=t._installmentOf?`<span class="badge ml-1" style="background:rgba(168,85,247,.15);color:var(--purple);font-size:10px">${t._part}/${t._total}</span>`:'';
+  const installBadge=t._installmentOf?`<span class="badge" style="background:rgba(168,85,247,.15);color:var(--purple);font-size:10px">${t._part}/${t._total}</span>`:'';
   const onclick=clickable&&!t.isRecurring?`onclick="openEditTx('${t.id}')"` :'';
-  // Fix 9&10: show account badge
+  // Conta: conta corrente só ícone; demais contas ícone + nome curto
   const accInfo=t.accountId?ACCOUNT_TYPES.find(a=>a.id===t.accountId):null;
-  const accBadge=accInfo?`<span class="badge" style="background:${accInfo.color}22;color:${accInfo.color}"><i class="fa-solid ${accInfo.icon} text-xs mr-1"></i>${accInfo.label}</span>`:'';
+  let accBadge='';
+  if(accInfo){
+    const showName=t.accountId!=='contacorrente';
+    accBadge=`<span class="badge" style="background:${accInfo.color}22;color:${accInfo.color}"><i class="fa-solid ${accInfo.icon} text-xs${showName?' mr-1':''}"></i>${showName?accInfo.label:''}</span>`;
+  }
+  const cardBadge=isCard?`<span class="badge" style="background:rgba(168,85,247,.15);color:var(--purple)"><i class="fa-solid fa-credit-card text-xs"></i></span>`:'';
+  const recurIcon=t.isRecurring?`<i class="fa-solid fa-rotate text-xs ml-1" style="color:var(--blue)"></i>`:'';
   return `<div class="tx-item" ${onclick}>
     <div class="tx-icon" style="background:${c.color}22"><i class="fa-solid ${c.icon}" style="color:${c.color}"></i></div>
     <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-1 flex-wrap"><span class="text-sm font-semibold text-white truncate">${escHtml(t.description)}</span>${badge}${installBadge}</div>
-      <div class="flex items-center gap-2 mt-0.5 flex-wrap">
-        <span class="text-xs" style="color:var(--text-muted)">${formatDateBR(t.date)}</span>
+      <div class="flex items-center gap-1 flex-wrap"><span class="text-sm font-semibold text-white truncate">${escHtml(t.description)}</span>${installBadge}</div>
+      <div class="flex items-center gap-1 mt-0.5">
+        <span class="text-xs" style="color:var(--text-muted)">${formatDateBR(t.date)}</span>${recurIcon}
+      </div>
+      <div class="flex items-center gap-1 mt-0.5 flex-wrap">
         <span class="badge" style="background:${c.color}22;color:${c.color}">${c.label}</span>
-        ${accBadge}
-        ${income?'<span class="badge" style="background:rgba(34,197,94,.15);color:var(--green)"><i class="fa-solid fa-arrow-trend-up text-xs"></i></span>':''}
-        ${isCard?'<span class="badge" style="background:rgba(168,85,247,.15);color:var(--purple)"><i class="fa-solid fa-credit-card text-xs"></i></span>':''}
+        ${accBadge}${cardBadge}
       </div>
     </div>
     <div class="text-sm font-bold" style="color:${amountColor}">${sign} ${fmt(t.amount)}</div>
