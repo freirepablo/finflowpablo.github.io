@@ -803,9 +803,16 @@ let chartCat = null, chartMonthly = null, chartLimits = null;
 /* ============================================================
    PERSISTENCE
 ============================================================ */
+let _autoSaveTimer = null;
 function saveState() {
   try { localStorage.setItem('financeflow_v3', JSON.stringify(state)); }
   catch(e) { console.warn('LocalStorage save failed', e); }
+  // Auto-save na nuvem: debounce de 1.5s para agrupar ações em sequência rápida
+  // (ex.: adicionar vários itens seguidos) em uma única requisição ao Firebase.
+  clearTimeout(_autoSaveTimer);
+  _autoSaveTimer = setTimeout(() => {
+    if(typeof window.saveToFirebase === 'function') window.saveToFirebase({ silent: true });
+  }, 1500);
 }
 
 function loadState() {
@@ -2469,18 +2476,18 @@ initPin();
 
   // Salva o objeto `state` (todas as transações, recorrências, saldos, configurações etc.)
   // no documento financeflow/state do Firestore.
-  window.saveToFirebase = async function () {
+  window.saveToFirebase = async function ({ silent = false } = {}) {
     const btn = document.getElementById('btn-save-firebase');
     const originalHtml = btn ? btn.innerHTML : null;
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...'; }
+    if (!silent && btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Salvando...'; }
     try {
       await setDoc(doc(db, "financeflow", "state"), JSON.parse(JSON.stringify(state)));
-      toast('Dados salvos na nuvem com sucesso!');
+      if (!silent) toast('Dados salvos na nuvem com sucesso!');
     } catch (e) {
       console.error('Firebase save failed', e);
-      toast('Erro ao salvar na nuvem. Veja o console.', 'error');
+      if (!silent) toast('Erro ao salvar na nuvem. Veja o console.', 'error');
     } finally {
-      if (btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
+      if (!silent && btn) { btn.disabled = false; btn.innerHTML = originalHtml; }
     }
   };
 </script>
