@@ -89,6 +89,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 .tab.active{background:var(--card);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.3);}
 #tx-tabs{flex-wrap:nowrap;flex:1;min-width:0;}
 #tx-tabs .tab{flex:1;text-align:center;padding:8px 6px;font-size:clamp(10px,2.8vw,13px);}
+@media(max-width:768px){#tx-filter-cat{width:100%;flex-basis:100%;}}
 .tx-item{display:flex;align-items:center;gap:12px;padding:12px;border-radius:12px;transition:background .15s;cursor:pointer;}
 .tx-item:hover{background:var(--muted);}
 .tx-icon{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
