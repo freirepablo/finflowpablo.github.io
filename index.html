@@ -56,7 +56,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
   #sidebar-overlay{display:block;}
 }
 .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;}
-.summary-card{background:linear-gradient(135deg,var(--card) 0%,#1a2d42 100%);border:1px solid var(--border);border-radius:16px;padding:20px;position:relative;overflow:hidden;}
+.summary-card{background:linear-gradient(135deg,var(--card) 0%,#1a2d42 100%);border:1px solid var(--border);border-radius:16px;padding:14px 16px;position:relative;overflow:hidden;}
 .summary-card::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;opacity:.06;}
 .summary-card.green::before{background:var(--green);}
 .summary-card.red::before{background:var(--red);}
@@ -127,6 +127,14 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
 .summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;}
 .charts-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;}
 .chart-wrap{position:relative;height:260px;}
+@media(max-width:768px){#chart-categories{min-height:300px;}.chart-wrap:has(#chart-categories){height:300px;}}
+@media(max-width:768px){
+  .summary-grid{grid-template-columns:1fr 1fr;gap:10px;}
+  .summary-card{padding:14px 12px;}
+  .summary-card .text-2xl{font-size:1.2rem;}
+  .summary-card .w-9{width:2rem;height:2rem;}
+  .summary-card-full{grid-column:1/-1;}
+}
 .limit-warning{color:var(--red)!important;}
 .limit-ok{color:var(--green)!important;}
 
@@ -235,8 +243,8 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
   <div id="main-header" class="mb-6">
   <div class="flex items-center justify-between flex-wrap gap-3" style="padding-bottom:12px">
     <div class="flex items-center gap-3">
-      <button class="md:hidden btn btn-ghost btn-icon" onclick="document.getElementById('sidebar').classList.add('open');document.getElementById('sidebar-overlay').style.display='block'"><i class="fa-solid fa-bars"></i></button>
-      <div>
+      <button class="hidden btn btn-ghost btn-icon" onclick="document.getElementById('sidebar').classList.add('open');document.getElementById('sidebar-overlay').style.display='block'"><i class="fa-solid fa-bars"></i></button>
+      <div class="hidden md:block">
         <h1 id="page-title" class="text-xl font-bold text-white">Dashboard</h1>
         <p id="page-sub" class="text-xs" style="color:var(--text-muted)">Visão geral do mês</p>
       </div>
@@ -268,58 +276,68 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
     </div>
 
     <!-- Summary cards -->
-    <div class="summary-grid mb-6">
-      <div class="summary-card green" style="cursor:pointer" onclick="toggleAccountBreakdown()">
-        <div class="flex items-center justify-between mb-3">
+    <div class="summary-grid mb-6" id="summary-grid" style="position:relative">
+      <!-- 1. Saldo em Conta (linha inteira) -->
+      <div class="summary-card green summary-card-full" style="cursor:pointer" onclick="toggleCardBreakdown('account')">
+        <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Saldo em Conta</span>
           <div class="flex items-center gap-2">
             <i id="account-expand-icon" class="fa-solid fa-chevron-down text-xs" style="color:var(--text-muted);transition:transform .3s"></i>
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(34,197,94,.15)"><i class="fa-solid fa-wallet text-green-400 text-sm"></i></div>
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(34,197,94,.15)"><i class="fa-solid fa-wallet text-green-400 text-sm"></i></div>
           </div>
         </div>
         <div id="card-balance" class="text-2xl font-bold text-white">R$ 0,00</div>
-        <div class="text-xs mt-1" style="color:var(--text-muted)">Clique para ver por conta</div>
-        <div id="account-breakdown-detail" class="hidden mt-3 pt-3 border-t" style="border-color:var(--border)"></div>
+        <div class="text-xs mt-1" style="color:var(--text-muted)">Saldo disponível em conta</div>
       </div>
+      <!-- 2. Receitas -->
       <div class="summary-card" style="background:linear-gradient(135deg,var(--card) 0%,#1f2d1f 100%)">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Receitas</span>
-          <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(34,197,94,.15)"><i class="fa-solid fa-arrow-trend-up text-sm" style="color:var(--green)"></i></div>
+          <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(34,197,94,.15)"><i class="fa-solid fa-arrow-trend-up text-sm" style="color:var(--green)"></i></div>
         </div>
         <div id="card-income" class="text-2xl font-bold" style="color:var(--green)">R$ 0,00</div>
         <div class="text-xs mt-1" style="color:var(--text-muted)">Total recebido no mês</div>
       </div>
+      <!-- 3. Gastos do Mês -->
+      <div class="summary-card blue" style="background:linear-gradient(135deg,var(--card) 0%,#2d1f1f 100%);cursor:pointer" onclick="toggleCardBreakdown('expenses')">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Gastos do Mês</span>
+          <div class="flex items-center gap-2">
+            <i id="expenses-expand-icon" class="fa-solid fa-chevron-down text-xs" style="color:var(--text-muted);transition:transform .3s"></i>
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(244,63,94,.15)"><i class="fa-solid fa-arrow-trend-down text-sm" style="color:var(--red)"></i></div>
+          </div>
+        </div>
+        <div id="card-expenses" class="text-2xl font-bold text-white">R$ 0,00</div>
+        <div class="text-xs mt-1" style="color:var(--text-muted)">Despesas + fixas pagas</div>
+      </div>
+      <!-- 4. Fatura do Cartão -->
       <div class="summary-card red" style="background:linear-gradient(135deg,var(--card) 0%,#2d1f1f 100%)">
-        <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Fatura do Cartão</span>
-          <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(244,63,94,.15)"><i class="fa-solid fa-credit-card text-sm" style="color:var(--red)"></i></div>
+          <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(244,63,94,.15)"><i class="fa-solid fa-credit-card text-sm" style="color:var(--red)"></i></div>
         </div>
         <div id="card-invoice" class="text-2xl font-bold text-white">R$ 0,00</div>
         <div class="text-xs mt-1" style="color:var(--text-muted)">Fatura atual do cartão</div>
       </div>
-      <div class="summary-card blue" style="background:linear-gradient(135deg,var(--card) 0%,#2d1f1f 100%);cursor:pointer" onclick="toggleExpensesBreakdown()">
-        <div class="flex items-center justify-between mb-3">
-          <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Gastos do Mês</span>
-          <div class="flex items-center gap-2">
-            <i id="expenses-expand-icon" class="fa-solid fa-chevron-down text-xs" style="color:var(--text-muted);transition:transform .3s"></i>
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(59,130,246,.15)"><i class="fa-solid fa-chart-line text-sm" style="color:var(--blue)"></i></div>
-          </div>
-        </div>
-        <div id="card-expenses" class="text-2xl font-bold text-white">R$ 0,00</div>
-        <div class="text-xs mt-1" style="color:var(--text-muted)">Despesas + fixas pagas · clique para detalhar</div>
-        <div id="expenses-breakdown-detail" class="hidden mt-3 pt-3 border-t" style="border-color:var(--border)"></div>
-      </div>
-      <div class="summary-card purple" style="background:linear-gradient(135deg,var(--card) 0%,#2d1f1f 100%);cursor:pointer" onclick="toggleProjectionBreakdown()">
-        <div class="flex items-center justify-between mb-3">
+      <!-- 5. Projeção do Mês -->
+      <div class="summary-card purple" style="background:linear-gradient(135deg,var(--card) 0%,#2d1f1f 100%);cursor:pointer" onclick="toggleCardBreakdown('projection')">
+        <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Projeção do Mês</span>
           <div class="flex items-center gap-2">
             <i id="projection-expand-icon" class="fa-solid fa-chevron-down text-xs" style="color:var(--text-muted);transition:transform .3s"></i>
-            <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(168,85,247,.15)"><i class="fa-solid fa-telescope text-sm" style="color:var(--purple)"></i></div>
+            <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(168,85,247,.15)"><i class="fa-solid fa-calendar-check text-sm" style="color:var(--purple)"></i></div>
           </div>
         </div>
         <div id="card-projection" class="text-2xl font-bold text-white">R$ 0,00</div>
-        <div class="text-xs mt-1" style="color:var(--text-muted)">Total projetado · clique para detalhar</div>
-        <div id="projection-breakdown-detail" class="hidden mt-3 pt-3 border-t" style="border-color:var(--border)"></div>
+        <div class="text-xs mt-1" style="color:var(--text-muted)">Total projetado do mês</div>
+      </div>
+      <!-- Overlay flutuante compartilhado pelos 3 cards expansíveis -->
+      <div id="breakdown-overlay" class="hidden" style="position:absolute;top:0;left:0;right:0;z-index:20;border-radius:16px;border:1px solid var(--border);background:var(--card);padding:16px;box-shadow:0 8px 32px rgba(0,0,0,.5)">
+        <div class="flex items-center justify-between mb-3">
+          <span id="breakdown-overlay-title" class="text-sm font-bold text-white"></span>
+          <button class="btn btn-ghost btn-icon" style="width:28px;height:28px" onclick="closeCardBreakdown()"><i class="fa-solid fa-xmark text-xs"></i></button>
+        </div>
+        <div id="breakdown-overlay-content"></div>
       </div>
     </div>
 
@@ -944,12 +962,14 @@ function refreshPage(page) {
 ============================================================ */
 function updateMonthLabel() { document.getElementById('month-label').textContent=monthLabel(state.currentMonth); }
 function prevMonth() {
+  closeCardBreakdown();
   const[y,m]=state.currentMonth.split('-').map(Number);
   const d=new Date(y,m-2,1);
   state.currentMonth=monthStr(d.getFullYear(),d.getMonth());
   saveState();updateMonthLabel();refreshPage(currentPage);
 }
 function nextMonth() {
+  closeCardBreakdown();
   const[y,m]=state.currentMonth.split('-').map(Number);
   const d=new Date(y,m,1);
   state.currentMonth=monthStr(d.getFullYear(),d.getMonth());
@@ -1135,32 +1155,86 @@ function getMonthProjectionDetailed(ym, catFilter='') {
   };
 }
 
-function renderProjectionBreakdown(ym, catFilter='') {
-  const el = document.getElementById('projection-breakdown-detail');
-  if(!el) return;
-  const {regularExpenses, fixedExpenses, cardInvoice, invoiceYm} = getMonthProjectionDetailed(ym, catFilter);
-  const row = (label, value, sub='') => `
-    <div class="flex items-center justify-between py-1">
+let _openBreakdown = null;
+
+function closeCardBreakdown() {
+  _openBreakdown = null;
+  const ov = document.getElementById('breakdown-overlay');
+  if(ov) ov.classList.add('hidden');
+  ['account','expenses','projection'].forEach(k => {
+    const icon = document.getElementById(k+'-expand-icon');
+    if(icon) icon.style.transform = '';
+  });
+}
+
+function toggleCardBreakdown(type) {
+  if(_openBreakdown === type) { closeCardBreakdown(); return; }
+  closeCardBreakdown();
+  _openBreakdown = type;
+  const icon = document.getElementById(type+'-expand-icon');
+  if(icon) icon.style.transform = 'rotate(180deg)';
+  const ov = document.getElementById('breakdown-overlay');
+  const title = document.getElementById('breakdown-overlay-title');
+  const content = document.getElementById('breakdown-overlay-content');
+  if(!ov||!content) return;
+  const ym = state.currentMonth;
+  const catFilter = document.getElementById('dash-filter-cat')?.value||'';
+  if(type === 'account') {
+    if(title) title.textContent = 'Saldo por Conta';
+    const bals = getAllAccountBalances();
+    let html = '';
+    for(const acc of ACCOUNT_TYPES) {
+      const bal = bals[acc.id]||0;
+      if(bal === 0) continue;
+      const balColor = bal<0?'var(--red)':'var(--green)';
+      html += `<div class="flex items-center justify-between py-1">
+        <div class="flex items-center gap-2">
+          <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:${acc.color}22"><i class="fa-solid ${acc.icon} text-xs" style="color:${acc.color}"></i></div>
+          <span class="text-xs text-white">${acc.label}</span>
+        </div>
+        <span class="text-xs font-bold" style="color:${balColor}">${bal<0?'-':''}${fmt(Math.abs(bal))}</span>
+      </div>`;
+    }
+    content.innerHTML = html || '<div class="text-xs" style="color:var(--text-muted)">Nenhuma conta com saldo</div>';
+  } else if(type === 'expenses') {
+    if(title) title.textContent = 'Gastos do Mês';
+    const {fixedTotal, regularTotal} = getMonthExpensesDetailed(ym, catFilter);
+    const row = (label, value, sub='') => `<div class="flex items-center justify-between py-1">
       <div><span class="text-xs text-white">${label}</span>${sub?`<div class="text-xs" style="color:var(--text-muted)">${sub}</div>`:''}</div>
       <span class="text-xs font-semibold" style="color:var(--red)">- ${fmt(value)}</span>
     </div>`;
-  el.innerHTML =
-    row('Despesas avulsas', regularExpenses, 'lançadas no mês') +
-    row('Despesas fixas', fixedExpenses, 'recorrências de conta') +
-    row(`Fatura do cartão`, cardInvoice, `Fatura de ${monthLabel(invoiceYm)}`) +
-    `<div class="flex justify-between pt-1 mt-1" style="border-top:1px solid var(--border)">
-      <span class="text-xs font-bold" style="color:var(--text-muted)">Total projetado</span>
-      <span class="text-xs font-bold" style="color:var(--purple)">- ${fmt(regularExpenses+fixedExpenses+cardInvoice)}</span>
+    content.innerHTML = row('Gastos avulsos', regularTotal, 'lançados no mês')
+      + row('Gastos recorrentes', fixedTotal, 'recorrências de conta pagas')
+      + `<div class="flex justify-between pt-1 mt-1" style="border-top:1px solid var(--border)">
+          <span class="text-xs font-bold" style="color:var(--text-muted)">Total</span>
+          <span class="text-xs font-bold" style="color:var(--red)">- ${fmt(fixedTotal+regularTotal)}</span>
+        </div>`;
+  } else if(type === 'projection') {
+    if(title) title.textContent = 'Projeção do Mês';
+    const {regularExpenses, fixedExpenses, cardInvoice, invoiceYm} = getMonthProjectionDetailed(ym, catFilter);
+    const row = (label, value, sub='') => `<div class="flex items-center justify-between py-1">
+      <div><span class="text-xs text-white">${label}</span>${sub?`<div class="text-xs" style="color:var(--text-muted)">${sub}</div>`:''}</div>
+      <span class="text-xs font-semibold" style="color:var(--red)">- ${fmt(value)}</span>
     </div>`;
+    content.innerHTML = row('Despesas avulsas', regularExpenses, 'lançadas no mês')
+      + row('Despesas fixas', fixedExpenses, 'recorrências de conta')
+      + row('Fatura do cartão', cardInvoice, `Fatura de ${monthLabel(invoiceYm)}`)
+      + `<div class="flex justify-between pt-1 mt-1" style="border-top:1px solid var(--border)">
+          <span class="text-xs font-bold" style="color:var(--text-muted)">Total projetado</span>
+          <span class="text-xs font-bold" style="color:var(--purple)">- ${fmt(regularExpenses+fixedExpenses+cardInvoice)}</span>
+        </div>`;
+  }
+  ov.classList.remove('hidden');
 }
 
-function toggleProjectionBreakdown() {
-  const detail = document.getElementById('projection-breakdown-detail');
-  const icon = document.getElementById('projection-expand-icon');
-  if(!detail) return;
-  const hidden = detail.classList.toggle('hidden');
-  if(icon) icon.style.transform = hidden ? '' : 'rotate(180deg)';
-}
+// Manter as funções de renderização antigas apenas para compatibilidade (não fazem mais nada visível)
+function renderAccountBreakdown() {}
+function renderExpensesBreakdown() {}
+function renderProjectionBreakdown() {}
+function toggleAccountBreakdown() { toggleCardBreakdown('account'); }
+function toggleExpensesBreakdown() { toggleCardBreakdown('expenses'); }
+function toggleProjectionBreakdown() { toggleCardBreakdown('projection'); }
+
 
 /* ============================================================
    DASHBOARD RENDER
@@ -1204,39 +1278,7 @@ function renderDashboard() {
   renderLimitsChart(ym, catFilter);
 }
 
-// Fix 9: expandable account breakdown in dashboard
-function renderAccountBreakdown() {
-  const breakdown = document.getElementById('account-breakdown-detail');
-  if(!breakdown) return;
-  const bals = getAllAccountBalances();
-  let html = '';
-  for(const acc of ACCOUNT_TYPES) {
-    const bal = bals[acc.id]||0;
-    if(bal === 0) continue;
-    const balColor = bal < 0 ? 'var(--red)' : 'var(--green)';
-    const sign = bal < 0 ? '-' : '';
-    html += `<div class="flex items-center justify-between py-1">
-      <div class="flex items-center gap-2">
-        <div class="w-6 h-6 rounded-lg flex items-center justify-center" style="background:${acc.color}22"><i class="fa-solid ${acc.icon} text-xs" style="color:${acc.color}"></i></div>
-        <span class="text-xs text-white">${acc.label}</span>
-      </div>
-      <span class="text-xs font-bold" style="color:${balColor}">${sign}${fmt(bal)}</span>
-    </div>`;
-  }
-  if(!html) html = '<div class="text-xs" style="color:var(--text-muted)">Nenhuma conta com saldo</div>';
-  breakdown.innerHTML = html;
-}
-
 function setEl(id,html){const el=document.getElementById(id);if(el)el.innerHTML=html;}
-
-// Fix 9: toggle account detail panel
-function toggleAccountBreakdown() {
-  const detail = document.getElementById('account-breakdown-detail');
-  const icon = document.getElementById('account-expand-icon');
-  if(!detail) return;
-  const hidden = detail.classList.toggle('hidden');
-  if(icon) icon.style.transform = hidden ? '' : 'rotate(180deg)';
-}
 
 // Retorna despesas fixas (recorrências account pagas) do mês, separadas das avulsas
 function getMonthExpensesDetailed(ym, catFilter='') {
@@ -1246,32 +1288,6 @@ function getMonthExpensesDetailed(ym, catFilter='') {
   return { fixed, regular,
     fixedTotal: fixed.reduce((s,t)=>s+t.amount,0),
     regularTotal: regular.reduce((s,t)=>s+t.amount,0) };
-}
-
-function renderExpensesBreakdown(ym, catFilter='') {
-  const el = document.getElementById('expenses-breakdown-detail');
-  if(!el) return;
-  const {fixedTotal, regularTotal} = getMonthExpensesDetailed(ym, catFilter);
-  const row = (label, value, sub='') => `
-    <div class="flex items-center justify-between py-1">
-      <div><span class="text-xs text-white">${label}</span>${sub?`<div class="text-xs" style="color:var(--text-muted)">${sub}</div>`:''}</div>
-      <span class="text-xs font-semibold" style="color:var(--red)">- ${fmt(value)}</span>
-    </div>`;
-  el.innerHTML =
-    row('Gastos avulsos', regularTotal, 'lançados no mês') +
-    row('Gastos recorrentes', fixedTotal, 'recorrências de conta pagas') +
-    `<div class="flex justify-between pt-1 mt-1" style="border-top:1px solid var(--border)">
-      <span class="text-xs font-bold" style="color:var(--text-muted)">Total</span>
-      <span class="text-xs font-bold" style="color:var(--red)">- ${fmt(fixedTotal+regularTotal)}</span>
-    </div>`;
-}
-
-function toggleExpensesBreakdown() {
-  const detail = document.getElementById('expenses-breakdown-detail');
-  const icon = document.getElementById('expenses-expand-icon');
-  if(!detail) return;
-  const hidden = detail.classList.toggle('hidden');
-  if(icon) icon.style.transform = hidden ? '' : 'rotate(180deg)';
 }
 
 function txItemHTML(t,clickable=true) {
@@ -1371,16 +1387,22 @@ function renderCharts() {
       options:{
         responsive:true,maintainAspectRatio:false,
         plugins:{
-          legend:{position:type1==='bar'?'top':'right',labels:{color:'#ffffff',font:{size:11},boxWidth:12,padding:8,generateLabels:(chart)=>{
-            const ds=chart.data.datasets[0];
-            return chart.data.labels.map((label,i)=>({
-              text:String(label||'Outros'),
-              fillStyle:Array.isArray(ds.backgroundColor)?ds.backgroundColor[i]:'#94a3b8',
-              strokeStyle:Array.isArray(ds.backgroundColor)?ds.backgroundColor[i]:'#94a3b8',
-              fontColor:'#e2e8f0',
-              hidden:false,index:i
-            }));
-          }}},
+          legend:{
+            position:type1==='bar'?'top':(window.innerWidth<=768?'bottom':'right'),
+            labels:{
+              color:'#ffffff',font:{size:window.innerWidth<=768?10:11},
+              boxWidth:10,padding:window.innerWidth<=768?6:8,
+              generateLabels:(chart)=>{
+                const ds=chart.data.datasets[0];
+                return chart.data.labels.map((label,i)=>({
+                  text:String(label||'Outros'),
+                  fillStyle:Array.isArray(ds.backgroundColor)?ds.backgroundColor[i]:'#94a3b8',
+                  strokeStyle:Array.isArray(ds.backgroundColor)?ds.backgroundColor[i]:'#94a3b8',
+                  fontColor:'#e2e8f0',hidden:false,index:i
+                }));
+              }
+            }
+          },
           tooltip:{callbacks:{label:(ctx)=>{const v=typeof ctx.parsed==='number'?ctx.parsed:(ctx.parsed?.y||0);return` ${fmt(v)}`;}}}
         },
         scales:type1==='bar'?{x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#1e3040'}},y:{ticks:{color:'#64748b',font:{size:10},callback:v=>'R$'+v},grid:{color:'#1e3040'}}}:{},
