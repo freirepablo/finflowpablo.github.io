@@ -36,6 +36,28 @@ tailwind.config = {
   --bg:#0f1923; --card:#162030; --border:#1e3040; --muted:#263d52;
   --text:#e2e8f0; --text-muted:#64748b; --sidebar-w:240px;
 }
+[data-theme="light"] {
+  --bg:#f1f5f9; --card:#ffffff; --border:#e2e8f0; --muted:#f8fafc;
+  --text:#0f172a; --text-muted:#64748b;
+}
+[data-theme="light"] body{background:var(--bg);color:var(--text);}
+[data-theme="light"] .tx-item:hover{background:rgba(0,0,0,.04);}
+[data-theme="light"] .summary-card{box-shadow:0 1px 4px rgba(0,0,0,.08);}
+[data-theme="light"] #sidebar,
+[data-theme="light"] #bottom-nav{background:#ffffff;border-color:var(--border);}
+[data-theme="light"] .nav-item:hover{background:rgba(0,0,0,.05);}
+[data-theme="light"] .card{background:#ffffff;border-color:var(--border);}
+[data-theme="light"] .input,.select{background:#f8fafc;border-color:var(--border);color:var(--text);}
+[data-theme="light"] .btn-ghost{color:var(--text-muted);}
+[data-theme="light"] .modal-box{background:#ffffff;}
+[data-theme="light"] .tab-bar{background:#e2e8f0;}
+[data-theme="light"] .tab.active{background:#ffffff;color:var(--text);}
+[data-theme="light"] .summary-card{background:linear-gradient(135deg,#ffffff 0%,#f0fdf4 100%) !important;}
+[data-theme="light"] .summary-card.red,[data-theme="light"] .summary-card.blue,[data-theme="light"] .summary-card.purple{background:linear-gradient(135deg,#ffffff 0%,#fef2f2 100%) !important;}
+[data-theme="light"] #main-header{background:var(--bg);}
+[data-theme="light"] .page-filters{background:var(--bg);}
+[data-theme="light"] ::-webkit-scrollbar-track{background:var(--bg);}
+[data-theme="light"] ::-webkit-scrollbar-thumb{background:var(--border);}
 *{box-sizing:border-box;margin:0;padding:0;touch-action:manipulation;}
 body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;overflow-x:hidden;}
 ::-webkit-scrollbar{width:4px;height:4px;}
@@ -56,7 +78,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
   #sidebar-overlay{display:block;}
 }
 .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px;}
-.summary-card{background:linear-gradient(135deg,var(--card) 0%,#1a2d42 100%);border:1px solid var(--border);border-radius:16px;padding:14px 16px;position:relative;overflow:hidden;}
+.summary-card{background:linear-gradient(135deg,var(--card) 0%,rgba(255,255,255,.04) 100%);border:1px solid var(--border);border-radius:16px;padding:14px 16px;position:relative;overflow:hidden;}
 .summary-card::before{content:'';position:absolute;top:-40px;right:-40px;width:120px;height:120px;border-radius:50%;opacity:.06;}
 .summary-card.green::before{background:var(--green);}
 .summary-card.red::before{background:var(--red);}
@@ -276,42 +298,51 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
     </div>
 
     <!-- Summary cards -->
-    <div class="summary-grid mb-6" id="summary-grid" style="position:relative">
+    <div class="summary-grid mb-6">
       <!-- 1. Saldo em Conta (linha inteira) -->
-      <div class="summary-card green summary-card-full" style="cursor:pointer" onclick="toggleCardBreakdown('account')">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Saldo em Conta</span>
-          <div class="flex items-center gap-2">
-            <i id="account-expand-icon" class="fa-solid fa-chevron-down text-xs" style="color:var(--text-muted);transition:transform .3s"></i>
-            <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(34,197,94,.15)"><i class="fa-solid fa-wallet text-green-400 text-sm"></i></div>
+      <div class="summary-card-full" style="position:relative">
+        <div class="summary-card green" style="cursor:pointer" onclick="toggleCardBreakdown('account')">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Saldo em Conta</span>
+            <div class="flex items-center gap-2">
+              <i id="account-expand-icon" class="fa-solid fa-chevron-down text-xs" style="color:var(--text-muted);transition:transform .3s"></i>
+              <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(34,197,94,.15)"><i class="fa-solid fa-wallet text-green-400 text-sm"></i></div>
+            </div>
           </div>
+          <div id="card-balance" class="text-2xl font-bold text-white">R$ 0,00</div>
+          <div class="text-xs mt-1" style="color:var(--text-muted)">Saldo disponível em conta</div>
         </div>
-        <div id="card-balance" class="text-2xl font-bold text-white">R$ 0,00</div>
-        <div class="text-xs mt-1" style="color:var(--text-muted)">Saldo disponível em conta</div>
+        <div id="account-breakdown-detail" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:25;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;box-shadow:0 8px 32px rgba(0,0,0,.6)"></div>
       </div>
       <!-- 2. Receitas -->
-      <div class="summary-card" style="background:linear-gradient(135deg,var(--card) 0%,#1f2d1f 100%)">
+      <div class="summary-card" style="background:linear-gradient(135deg,var(--card) 0%,rgba(255,255,255,.04) 100%)">
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Receitas</span>
-          <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(34,197,94,.15)"><i class="fa-solid fa-arrow-trend-up text-sm" style="color:var(--green)"></i></div>
+          <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(34,197,94,.15);position:relative">
+            <i class="fa-solid fa-arrow-trend-up text-sm" style="color:var(--green)"></i>
+            <div style="position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:rgba(34,197,94,.35);border:1.5px solid var(--card)"></div>
+          </div>
         </div>
         <div id="card-income" class="text-2xl font-bold" style="color:var(--green)">R$ 0,00</div>
         <div class="text-xs mt-1" style="color:var(--text-muted)">Total recebido no mês</div>
       </div>
-      <!-- 3. Gastos do Mês -->
-      <div class="summary-card blue" style="background:linear-gradient(135deg,var(--card) 0%,#2d1f1f 100%);cursor:pointer" onclick="toggleCardBreakdown('expenses')">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Gastos do Mês</span>
-          <div class="flex items-center gap-2">
-            <i id="expenses-expand-icon" class="fa-solid fa-chevron-down text-xs" style="color:var(--text-muted);transition:transform .3s"></i>
-            <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(244,63,94,.15)"><i class="fa-solid fa-arrow-trend-down text-sm" style="color:var(--red)"></i></div>
+      <!-- 3. Despesas -->
+      <div style="position:relative">
+        <div class="summary-card blue" style="background:linear-gradient(135deg,var(--card) 0%,rgba(255,255,255,.04) 100%);cursor:pointer" onclick="toggleCardBreakdown('expenses')">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Despesas</span>
+            <div class="flex items-center gap-2">
+              <i id="expenses-expand-icon" class="fa-solid fa-chevron-down text-xs" style="color:var(--text-muted);transition:transform .3s"></i>
+              <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(244,63,94,.15)"><i class="fa-solid fa-arrow-trend-down text-sm" style="color:var(--red)"></i></div>
+            </div>
           </div>
+          <div id="card-expenses" class="text-2xl font-bold text-white">R$ 0,00</div>
+          <div class="text-xs mt-1" style="color:var(--text-muted)">Despesas + fixas pagas</div>
         </div>
-        <div id="card-expenses" class="text-2xl font-bold text-white">R$ 0,00</div>
-        <div class="text-xs mt-1" style="color:var(--text-muted)">Despesas + fixas pagas</div>
+        <div id="expenses-breakdown-detail" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:25;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;box-shadow:0 8px 32px rgba(0,0,0,.6)"></div>
       </div>
       <!-- 4. Fatura do Cartão -->
-      <div class="summary-card red" style="background:linear-gradient(135deg,var(--card) 0%,#2d1f1f 100%)">
+      <div class="summary-card red" style="background:linear-gradient(135deg,var(--card) 0%,rgba(255,255,255,.04) 100%)">
         <div class="flex items-center justify-between mb-2">
           <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Fatura do Cartão</span>
           <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(244,63,94,.15)"><i class="fa-solid fa-credit-card text-sm" style="color:var(--red)"></i></div>
@@ -320,24 +351,19 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
         <div class="text-xs mt-1" style="color:var(--text-muted)">Fatura atual do cartão</div>
       </div>
       <!-- 5. Projeção do Mês -->
-      <div class="summary-card purple" style="background:linear-gradient(135deg,var(--card) 0%,#2d1f1f 100%);cursor:pointer" onclick="toggleCardBreakdown('projection')">
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Projeção do Mês</span>
-          <div class="flex items-center gap-2">
-            <i id="projection-expand-icon" class="fa-solid fa-chevron-down text-xs" style="color:var(--text-muted);transition:transform .3s"></i>
-            <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(168,85,247,.15)"><i class="fa-solid fa-calendar-check text-sm" style="color:var(--purple)"></i></div>
+      <div style="position:relative">
+        <div class="summary-card purple" style="background:linear-gradient(135deg,var(--card) 0%,rgba(255,255,255,.04) 100%);cursor:pointer" onclick="toggleCardBreakdown('projection')">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-semibold uppercase tracking-wider" style="color:var(--text-muted)">Projeção do Mês</span>
+            <div class="flex items-center gap-2">
+              <i id="projection-expand-icon" class="fa-solid fa-chevron-down text-xs" style="color:var(--text-muted);transition:transform .3s"></i>
+              <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background:rgba(168,85,247,.15)"><i class="fa-solid fa-calendar-check text-sm" style="color:var(--purple)"></i></div>
+            </div>
           </div>
+          <div id="card-projection" class="text-2xl font-bold text-white">R$ 0,00</div>
+          <div class="text-xs mt-1" style="color:var(--text-muted)">Total projetado do mês</div>
         </div>
-        <div id="card-projection" class="text-2xl font-bold text-white">R$ 0,00</div>
-        <div class="text-xs mt-1" style="color:var(--text-muted)">Total projetado do mês</div>
-      </div>
-      <!-- Overlay flutuante compartilhado pelos 3 cards expansíveis -->
-      <div id="breakdown-overlay" class="hidden" style="position:absolute;top:0;left:0;right:0;z-index:20;border-radius:16px;border:1px solid var(--border);background:var(--card);padding:16px;box-shadow:0 8px 32px rgba(0,0,0,.5)">
-        <div class="flex items-center justify-between mb-3">
-          <span id="breakdown-overlay-title" class="text-sm font-bold text-white"></span>
-          <button class="btn btn-ghost btn-icon" style="width:28px;height:28px" onclick="closeCardBreakdown()"><i class="fa-solid fa-xmark text-xs"></i></button>
-        </div>
-        <div id="breakdown-overlay-content"></div>
+        <div id="projection-breakdown-detail" class="hidden" style="position:absolute;top:100%;left:0;right:0;z-index:25;margin-top:4px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 16px;box-shadow:0 8px 32px rgba(0,0,0,.6)"></div>
       </div>
     </div>
 
@@ -530,15 +556,55 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-s
         <h3 class="font-bold text-white mb-4">Cartão &amp; Conta</h3>
         <div class="mb-4"><label class="label">Dia de fechamento da fatura</label><input type="number" class="input" id="closing-day" min="1" max="28" placeholder="Ex: 22"/><p class="helper-text">O vencimento será 7 dias após o fechamento.</p></div>
         <div class="mb-4"><label class="label">Saldo inicial da conta (R$)</label><input type="text" class="input" id="initial-balance" placeholder="Ex: 1.500,00" oninput="formatAmountInput(this)" inputmode="decimal"/></div>
+        <div class="mb-4">
+          <label class="label">Tema</label>
+          <div class="flex items-center gap-3">
+            <button id="theme-btn-dark" class="btn btn-primary btn-sm" onclick="setTheme('dark')"><i class="fa-solid fa-moon mr-1"></i>Escuro</button>
+            <button id="theme-btn-light" class="btn btn-ghost btn-sm" onclick="setTheme('light')"><i class="fa-solid fa-sun mr-1"></i>Claro</button>
+          </div>
+        </div>
         <button class="btn btn-primary" onclick="saveSettings()"><i class="fa-solid fa-floppy-disk"></i> Salvar Configurações</button>
       </div>
 
-      <!-- Category limits -->
+      <!-- Categories management -->
       <div class="card">
-        <h3 class="font-bold text-white mb-4"><i class="fa-solid fa-gauge-high mr-2" style="color:var(--yellow)"></i>Limites por Categoria</h3>
-        <p class="text-xs mb-4" style="color:var(--text-muted)">Defina um teto mensal de gastos para cada categoria. Deixe em branco ou zero para sem limite.</p>
-        <div id="limits-list" class="max-h-80 overflow-y-auto"></div>
-        <button class="btn btn-primary mt-4" onclick="saveLimits()"><i class="fa-solid fa-floppy-disk"></i> Salvar Limites</button>
+        <h3 class="font-bold text-white mb-1"><i class="fa-solid fa-tag mr-2" style="color:var(--yellow)"></i>Categorias</h3>
+        <p class="text-xs mb-4" style="color:var(--text-muted)">Gerencie categorias e defina limites mensais de gastos. Deixe o limite em branco para sem limite.</p>
+        <div id="limits-list" class="max-h-96 overflow-y-auto"></div>
+        <div class="flex gap-2 mt-4 flex-wrap">
+          <button class="btn btn-ghost btn-sm" onclick="openAddCategory()"><i class="fa-solid fa-plus"></i> Nova Categoria</button>
+          <button class="btn btn-primary btn-sm" onclick="saveLimits()"><i class="fa-solid fa-floppy-disk"></i> Salvar Limites</button>
+        </div>
+      </div>
+
+      <!-- Modal: adicionar categoria -->
+      <div id="modal-add-category" class="modal-overlay">
+        <div class="modal-box">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="font-bold text-white text-lg"><i class="fa-solid fa-tag mr-2" style="color:var(--yellow)"></i>Nova Categoria</h2>
+            <button class="btn btn-ghost btn-icon" onclick="closeModal('add-category')"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="mb-3"><label class="label">Nome</label><input class="input" id="new-cat-name" placeholder="Ex.: Pet, Viagem..."/></div>
+          <div class="mb-3">
+            <label class="label">Cor</label>
+            <div class="flex items-center gap-3">
+              <input type="color" id="new-cat-color" value="#3b82f6" style="width:48px;height:36px;border-radius:8px;border:1px solid var(--border);background:none;cursor:pointer;padding:2px"/>
+              <span class="text-xs" style="color:var(--text-muted)">Clique para escolher a cor do ícone</span>
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="label">Ícone <span class="text-xs" style="color:var(--text-muted)">(nome do Font Awesome, ex: fa-star)</span></label>
+            <div class="flex items-center gap-3">
+              <input class="input flex-1" id="new-cat-icon" placeholder="fa-star" oninput="updateCatPreview()"/>
+              <div id="new-cat-preview" class="w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(59,130,246,.15)"><i id="new-cat-preview-icon" class="fa-solid fa-star" style="color:#3b82f6"></i></div>
+            </div>
+            <div class="flex flex-wrap gap-2 mt-2" id="cat-icon-picker"></div>
+          </div>
+          <div class="flex gap-2 justify-end">
+            <button class="btn btn-ghost" onclick="closeModal('add-category')">Cancelar</button>
+            <button class="btn btn-primary" onclick="addCustomCategory()"><i class="fa-solid fa-plus"></i> Adicionar</button>
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -1158,13 +1224,12 @@ function getMonthProjectionDetailed(ym, catFilter='') {
 let _openBreakdown = null;
 
 function closeCardBreakdown() {
+  if(!_openBreakdown) return;
+  const detail = document.getElementById(_openBreakdown+'-breakdown-detail');
+  if(detail) detail.classList.add('hidden');
+  const icon = document.getElementById(_openBreakdown+'-expand-icon');
+  if(icon) icon.style.transform = '';
   _openBreakdown = null;
-  const ov = document.getElementById('breakdown-overlay');
-  if(ov) ov.classList.add('hidden');
-  ['account','expenses','projection'].forEach(k => {
-    const icon = document.getElementById(k+'-expand-icon');
-    if(icon) icon.style.transform = '';
-  });
 }
 
 function toggleCardBreakdown(type) {
@@ -1173,14 +1238,11 @@ function toggleCardBreakdown(type) {
   _openBreakdown = type;
   const icon = document.getElementById(type+'-expand-icon');
   if(icon) icon.style.transform = 'rotate(180deg)';
-  const ov = document.getElementById('breakdown-overlay');
-  const title = document.getElementById('breakdown-overlay-title');
-  const content = document.getElementById('breakdown-overlay-content');
-  if(!ov||!content) return;
+  const detail = document.getElementById(type+'-breakdown-detail');
+  if(!detail) return;
   const ym = state.currentMonth;
   const catFilter = document.getElementById('dash-filter-cat')?.value||'';
   if(type === 'account') {
-    if(title) title.textContent = 'Saldo por Conta';
     const bals = getAllAccountBalances();
     let html = '';
     for(const acc of ACCOUNT_TYPES) {
@@ -1195,28 +1257,26 @@ function toggleCardBreakdown(type) {
         <span class="text-xs font-bold" style="color:${balColor}">${bal<0?'-':''}${fmt(Math.abs(bal))}</span>
       </div>`;
     }
-    content.innerHTML = html || '<div class="text-xs" style="color:var(--text-muted)">Nenhuma conta com saldo</div>';
+    detail.innerHTML = html || '<div class="text-xs" style="color:var(--text-muted)">Nenhuma conta com saldo</div>';
   } else if(type === 'expenses') {
-    if(title) title.textContent = 'Gastos do Mês';
     const {fixedTotal, regularTotal} = getMonthExpensesDetailed(ym, catFilter);
     const row = (label, value, sub='') => `<div class="flex items-center justify-between py-1">
       <div><span class="text-xs text-white">${label}</span>${sub?`<div class="text-xs" style="color:var(--text-muted)">${sub}</div>`:''}</div>
       <span class="text-xs font-semibold" style="color:var(--red)">- ${fmt(value)}</span>
     </div>`;
-    content.innerHTML = row('Gastos avulsos', regularTotal, 'lançados no mês')
+    detail.innerHTML = row('Gastos avulsos', regularTotal, 'lançados no mês')
       + row('Gastos recorrentes', fixedTotal, 'recorrências de conta pagas')
       + `<div class="flex justify-between pt-1 mt-1" style="border-top:1px solid var(--border)">
           <span class="text-xs font-bold" style="color:var(--text-muted)">Total</span>
           <span class="text-xs font-bold" style="color:var(--red)">- ${fmt(fixedTotal+regularTotal)}</span>
         </div>`;
   } else if(type === 'projection') {
-    if(title) title.textContent = 'Projeção do Mês';
     const {regularExpenses, fixedExpenses, cardInvoice, invoiceYm} = getMonthProjectionDetailed(ym, catFilter);
     const row = (label, value, sub='') => `<div class="flex items-center justify-between py-1">
       <div><span class="text-xs text-white">${label}</span>${sub?`<div class="text-xs" style="color:var(--text-muted)">${sub}</div>`:''}</div>
       <span class="text-xs font-semibold" style="color:var(--red)">- ${fmt(value)}</span>
     </div>`;
-    content.innerHTML = row('Despesas avulsas', regularExpenses, 'lançadas no mês')
+    detail.innerHTML = row('Despesas avulsas', regularExpenses, 'lançadas no mês')
       + row('Despesas fixas', fixedExpenses, 'recorrências de conta')
       + row('Fatura do cartão', cardInvoice, `Fatura de ${monthLabel(invoiceYm)}`)
       + `<div class="flex justify-between pt-1 mt-1" style="border-top:1px solid var(--border)">
@@ -1224,10 +1284,10 @@ function toggleCardBreakdown(type) {
           <span class="text-xs font-bold" style="color:var(--purple)">- ${fmt(regularExpenses+fixedExpenses+cardInvoice)}</span>
         </div>`;
   }
-  ov.classList.remove('hidden');
+  detail.classList.remove('hidden');
 }
 
-// Manter as funções de renderização antigas apenas para compatibilidade (não fazem mais nada visível)
+// Manter aliases para compatibilidade com chamadas existentes
 function renderAccountBreakdown() {}
 function renderExpensesBreakdown() {}
 function renderProjectionBreakdown() {}
@@ -1782,18 +1842,21 @@ function renderRecurringPage() {
         const amtColor=isInc?'var(--green)':'var(--red)';
         const amtSign=isInc?'+':'-';
         if(isPaid){
-          const statusLabel=isInc?'Recebida':'Paga';
-          payBtnHtml=`<div class="flex flex-col items-end gap-1"><div class="text-sm font-bold" style="color:var(--green)">${statusLabel}</div><button class="btn btn-ghost btn-sm text-xs" onclick="event.stopPropagation();unpayRecurring('${r.id}')"><i class="fa-solid fa-rotate-left"></i></button></div>`;
+          payBtnHtml=`<div class="flex flex-col items-end gap-1"><span class="text-sm font-bold" style="color:${amtColor}">${amtSign} ${fmt(amount)}</span><button class="btn btn-ghost btn-sm text-xs" onclick="event.stopPropagation();unpayRecurring('${r.id}')"><i class="fa-solid fa-rotate-left"></i></button></div>`;
         } else {
           const actionLabel=isInc?'Receber':'Pagar';
-          payBtnHtml=`<div class="flex flex-col items-end gap-1"><div class="text-sm font-bold" style="color:${amtColor}">${amtSign} ${fmt(amount)}</div><button class="btn btn-primary btn-sm text-xs" onclick="event.stopPropagation();openPayRecurring('${r.id}')"><i class="fa-solid fa-check"></i> ${actionLabel}</button></div>`;
+          payBtnHtml=`<div class="flex flex-col items-end gap-1"><span class="text-sm font-bold" style="color:${amtColor}">${amtSign} ${fmt(amount)}</span><button class="btn btn-primary btn-sm text-xs" onclick="event.stopPropagation();openPayRecurring('${r.id}')"><i class="fa-solid fa-check"></i> ${actionLabel}</button></div>`;
         }
       }
       return `<div class="tx-item" onclick="openEditRecurring('${r.id}')">
         <div class="tx-icon" style="background:${c.color}22"><i class="fa-solid ${c.icon}" style="color:${c.color}"></i></div>
-        <div class="flex-1">
-          <div class="flex items-center gap-2"><span class="text-sm font-semibold text-white">${escHtml(desc)}</span>${isOver?'<span class="badge" style="background:rgba(234,179,8,.15);color:var(--yellow)">Modificado</span>':''}${isPaid?`<span class="badge" style="background:rgba(34,197,94,.2);color:var(--green)"><i class="fa-solid fa-check-circle text-xs"></i> ${isInc?'Recebida':'Paga'}</span>`:''}</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-semibold text-white truncate">${escHtml(desc)}</div>
           <div class="text-xs mt-0.5" style="color:var(--text-muted)">Dia ${r.day} · ${c.label}</div>
+          <div class="flex items-center gap-1 mt-1 flex-wrap">
+            ${isOver?'<span class="badge" style="background:rgba(234,179,8,.15);color:var(--yellow)">Modificado</span>':''}
+            ${isPaid?`<span class="badge" style="background:rgba(34,197,94,.2);color:var(--green)"><i class="fa-solid fa-check-circle text-xs mr-1"></i>${isInc?'Recebida':'Paga'}</span>`:''}
+          </div>
         </div>
         ${showPayBtn?payBtnHtml:`<div class="text-sm font-bold" style="color:${isInc?'var(--green)':'var(--red)'}">${isInc?'+':'-'} ${fmt(amount)}</div>`}
       </div>`;
@@ -1971,20 +2034,77 @@ function renderSettings() {
   document.getElementById('closing-day').value=state.settings.closingDay||22;
   const ib=state.settings.initialBalance||0;
   document.getElementById('initial-balance').value=ib.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  applyTheme(state.settings?.theme||'dark');
   renderLimitsList();
 }
 
+const CAT_ICON_SUGGESTIONS=['fa-star','fa-heart','fa-bolt','fa-car','fa-plane','fa-home','fa-baby','fa-dog','fa-dumbbell','fa-gamepad','fa-music','fa-book','fa-shirt','fa-gift','fa-cocktail','fa-film','fa-leaf','fa-briefcase','fa-graduation-cap','fa-stethoscope','fa-tools','fa-paint-brush','fa-bicycle','fa-coffee','fa-sun','fa-moon'];
+
 function renderLimitsList() {
   const el=document.getElementById('limits-list');
-  // Show categories alphabetically
   el.innerHTML=CATEGORIES.map(c=>{
     const val=state.categoryLimits[c.id]||'';
-    return `<div class="flex items-center gap-3 mb-3">
+    const isCustom=!!(c._custom);
+    const removeBtn=isCustom?`<button class="btn btn-ghost btn-icon" style="width:28px;height:28px;flex-shrink:0" onclick="removeCustomCategory('${c.id}')" title="Remover categoria"><i class="fa-solid fa-trash text-xs" style="color:var(--red)"></i></button>`:'';
+    return `<div class="flex items-center gap-2 mb-3">
       <div class="tx-icon" style="background:${c.color}22;width:32px;height:32px;flex-shrink:0"><i class="fa-solid ${c.icon} text-xs" style="color:${c.color}"></i></div>
-      <span class="text-sm text-white flex-1">${c.label}</span>
-      <input type="number" class="input text-xs" style="width:110px;padding:6px 10px" placeholder="Sem limite" value="${val}" data-cat="${c.id}" step="0.01" min="0"/>
+      <span class="text-sm text-white flex-1 truncate">${c.label}</span>
+      <input type="number" class="input text-xs" style="width:90px;padding:6px 8px;flex-shrink:0" placeholder="Sem limite" value="${val}" data-cat="${c.id}" step="0.01" min="0"/>
+      ${removeBtn}
     </div>`;
   }).join('');
+}
+
+function openAddCategory() {
+  document.getElementById('new-cat-name').value='';
+  document.getElementById('new-cat-icon').value='fa-star';
+  document.getElementById('new-cat-color').value='#3b82f6';
+  updateCatPreview();
+  // Montar picker de ícones sugeridos
+  const picker=document.getElementById('cat-icon-picker');
+  if(picker) picker.innerHTML=CAT_ICON_SUGGESTIONS.map(ic=>
+    `<button class="btn btn-ghost btn-icon" style="width:32px;height:32px" onclick="pickCatIcon('${ic}')" title="${ic}"><i class="fa-solid ${ic} text-xs"></i></button>`
+  ).join('');
+  openModal('add-category');
+}
+
+function pickCatIcon(ic) {
+  document.getElementById('new-cat-icon').value=ic;
+  updateCatPreview();
+}
+
+function updateCatPreview() {
+  const icon=document.getElementById('new-cat-icon')?.value?.trim()||'fa-star';
+  const color=document.getElementById('new-cat-color')?.value||'#3b82f6';
+  const prev=document.getElementById('new-cat-preview');
+  const prevIcon=document.getElementById('new-cat-preview-icon');
+  if(prev) prev.style.background=color+'26';
+  if(prevIcon){prevIcon.className=`fa-solid ${icon}`;prevIcon.style.color=color;}
+}
+
+function addCustomCategory() {
+  const name=document.getElementById('new-cat-name').value.trim();
+  const icon=(document.getElementById('new-cat-icon').value.trim()||'fa-star').replace(/^fa-/,'');
+  const color=document.getElementById('new-cat-color').value||'#3b82f6';
+  if(!name){toast('Informe o nome da categoria','error');return;}
+  const id='cat_'+name.toLowerCase().replace(/[^a-z0-9]/g,'_')+'_'+Date.now().toString(36);
+  CATEGORIES.push({id,label:name,icon:'fa-'+icon,color,_custom:true});
+  CATEGORIES.sort((a,b)=>a.label.localeCompare(b.label));
+  if(!state.customCategories)state.customCategories=[];
+  state.customCategories.push({id,label:name,icon:'fa-'+icon,color});
+  saveState();closeModal('add-category');
+  renderLimitsList();populateAllCategorySelects();
+  toast('Categoria adicionada!');
+}
+
+function removeCustomCategory(id) {
+  if(!confirm('Remover esta categoria? Transações existentes com ela serão mantidas.'))return;
+  const idx=CATEGORIES.findIndex(c=>c.id===id);
+  if(idx!==-1)CATEGORIES.splice(idx,1);
+  if(state.customCategories)state.customCategories=state.customCategories.filter(c=>c.id!==id);
+  delete state.categoryLimits[id];
+  saveState();renderLimitsList();populateAllCategorySelects();
+  toast('Categoria removida.','info');
 }
 
 function saveLimits() {
@@ -1996,6 +2116,20 @@ function saveLimits() {
   });
   saveState();toast('Limites salvos!');
   if(currentPage==='dashboard')renderDashboard();
+}
+
+function setTheme(t){
+  state.settings.theme=t;
+  applyTheme(t);
+  saveState();
+}
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t||'dark');
+  const isDark=(t||'dark')==='dark';
+  const btnDark=document.getElementById('theme-btn-dark');
+  const btnLight=document.getElementById('theme-btn-light');
+  if(btnDark){btnDark.className=isDark?'btn btn-primary btn-sm':'btn btn-ghost btn-sm';}
+  if(btnLight){btnLight.className=isDark?'btn btn-ghost btn-sm':'btn btn-primary btn-sm';}
 }
 
 function saveSettings() {
@@ -2404,6 +2538,13 @@ function init(){
   if(!state.accountBalances)state.accountBalances={};
   if(!state.invoicePaid)state.invoicePaid={};
   if(!state.recurringPaid)state.recurringPaid={};
+  // Restaurar categorias customizadas salvas
+  if(state.customCategories){
+    for(const c of state.customCategories){
+      if(!CATEGORIES.find(x=>x.id===c.id))CATEGORIES.push({...c,_custom:true});
+    }
+    CATEGORIES.sort((a,b)=>a.label.localeCompare(b.label));
+  }
   // Migração: se ainda não existe savingsBoxes (versão antiga), converte a Caixinha única existente na primeira caixinha
   if(!state.savingsBoxes||state.savingsBoxes.length===0){
     const old=state.savings||{balance:0,goal:0,history:[]};
@@ -2414,6 +2555,7 @@ function init(){
   }
   populateAllCategorySelects();
   updateMonthLabel();
+  applyTheme(state.settings?.theme||'dark');
   renderDashboard();
   // Ajustar o top dos filtros sticky baseado na altura real do header
   requestAnimationFrame(()=>{
@@ -2574,6 +2716,14 @@ initPin();
         if (!state.invoicePaid) state.invoicePaid = {};
         if (!state.recurringPaid) state.recurringPaid = {};
         saveState(); // mantém o localStorage em sincronia com o que veio da nuvem
+        // Restaurar categorias customizadas da nuvem
+        if(state.customCategories){
+          for(const c of state.customCategories){
+            if(!CATEGORIES.find(x=>x.id===c.id))CATEGORIES.push({...c,_custom:true});
+          }
+          CATEGORIES.sort((a,b)=>a.label.localeCompare(b.label));
+        }
+        applyTheme(state.settings?.theme||'dark');
         populateAllCategorySelects();
         updateMonthLabel();
         refreshPage(currentPage);
