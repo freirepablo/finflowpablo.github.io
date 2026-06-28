@@ -1459,7 +1459,7 @@ function renderCharts() {
           legend:{
             position:type1==='bar'?'top':(window.innerWidth<=768?'bottom':'right'),
             labels:{
-              color:'#ffffff',font:{size:window.innerWidth<=768?10:11},
+              color:chartColors().text,font:{size:window.innerWidth<=768?10:11},
               boxWidth:10,padding:window.innerWidth<=768?6:8,
               generateLabels:(chart)=>{
                 const ds=chart.data.datasets[0];
@@ -1467,14 +1467,14 @@ function renderCharts() {
                   text:String(label||'Outros'),
                   fillStyle:Array.isArray(ds.backgroundColor)?ds.backgroundColor[i]:'#94a3b8',
                   strokeStyle:Array.isArray(ds.backgroundColor)?ds.backgroundColor[i]:'#94a3b8',
-                  fontColor:'#e2e8f0',hidden:false,index:i
+                  fontColor:chartColors().text,hidden:false,index:i
                 }));
               }
             }
           },
           tooltip:{callbacks:{label:(ctx)=>{const v=typeof ctx.parsed==='number'?ctx.parsed:(ctx.parsed?.y||0);return` ${fmt(v)}`;}}}
         },
-        scales:type1==='bar'?{x:{ticks:{color:'#64748b',font:{size:10}},grid:{color:'#1e3040'}},y:{ticks:{color:'#64748b',font:{size:10},callback:v=>'R$'+v},grid:{color:'#1e3040'}}}:{},
+        scales:type1==='bar'?{x:{ticks:{color:chartColors().muted,font:{size:10}},grid:{color:chartColors().grid}},y:{ticks:{color:chartColors().muted,font:{size:10},callback:v=>'R$'+v},grid:{color:chartColors().grid}}}:{},
       }
     });
   }
@@ -1501,7 +1501,7 @@ function renderCharts() {
         {label:'Cartão',data:cardData,borderColor:'#a855f7',backgroundColor:type2==='line'?'rgba(168,85,247,.15)':'#a855f7',fill:type2==='line',tension:.4,borderWidth:2,pointRadius:4},
       ]
     },
-    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:'#e2e8f0',font:{size:11}}}},scales:{x:{ticks:{color:'#64748b',font:{size:11}},grid:{color:'#1e3040'}},y:{ticks:{color:'#64748b',font:{size:11},callback:v=>'R$'+v},grid:{color:'#1e3040'}}}}
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{color:chartColors().text,font:{size:11}}}},scales:{x:{ticks:{color:chartColors().muted,font:{size:11}},grid:{color:chartColors().grid}},y:{ticks:{color:chartColors().muted,font:{size:11},callback:v=>'R$'+v},grid:{color:chartColors().grid}}}}
   });
 }
 
@@ -1539,10 +1539,10 @@ function renderLimitsChart(ym, catFilter='') {
       labels,
       datasets:[
         {label:'Gasto',data:spent,backgroundColor:colors,borderRadius:6},
-        {label:'Limite',data:lims,backgroundColor:'rgba(255,255,255,.1)',borderColor:'rgba(255,255,255,.3)',borderWidth:2,borderRadius:6,type:'bar'},
+        {label:'Limite',data:lims,backgroundColor:'rgba(128,128,128,.15)',borderColor:chartColors().muted,borderWidth:2,borderRadius:6,type:'bar'},
       ]
     },
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#e2e8f0',font:{size:11}}}},scales:{x:{ticks:{color:'#64748b',font:{size:11}},grid:{color:'#1e3040'}},y:{ticks:{color:'#64748b',font:{size:11},callback:v=>'R$'+v},grid:{color:'#1e3040'}}}}
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:chartColors().text,font:{size:11}}}},scales:{x:{ticks:{color:chartColors().muted,font:{size:11}},grid:{color:chartColors().grid}},y:{ticks:{color:chartColors().muted,font:{size:11},callback:v=>'R$'+v},grid:{color:chartColors().grid}}}}
   });
 }
 
@@ -1557,7 +1557,15 @@ function setTxTab(tab) {
   renderTransactions();
 }
 
-// Agrupa transações de cartão em seções "Fatura de Mês", usando o ciclo de fechamento
+// Lê as cores do tema ativo via CSS para que os gráficos fiquem corretos em modo claro e escuro
+function chartColors() {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  return {
+    text:    isLight ? '#0f172a' : '#e2e8f0',
+    muted:   isLight ? '#475569' : '#64748b',
+    grid:    isLight ? '#e2e8f0' : '#1e3040',
+  };
+}
 function renderTxGroupedByInvoice(txs) {
   const closingDay=state.settings.closingDay||22;
   const groups={};
@@ -2139,6 +2147,8 @@ function applyTheme(t){
   const btnLight=document.getElementById('theme-btn-light');
   if(btnDark){btnDark.className=isDark?'btn btn-primary btn-sm':'btn btn-ghost btn-sm';}
   if(btnLight){btnLight.className=isDark?'btn btn-ghost btn-sm':'btn btn-primary btn-sm';}
+  // Re-renderiza a página atual para os gráficos pegarem as novas cores
+  if(typeof refreshPage==='function'&&typeof currentPage!=='undefined')refreshPage(currentPage);
 }
 
 function saveSettings() {
